@@ -75,7 +75,7 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
-    needs: myapp mylearning  # run only if tests pass
+    needs: [myapp, mylearning]  # run only if tests pass
 
     steps:
     - uses: actions/checkout@v3
