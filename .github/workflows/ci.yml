@@ -93,10 +93,10 @@ jobs:
         curl -f http://localhost:8000 || exit 1
 
     - name: Run container mylearning
-      run: docker run mylearning
+      run: docker run --name mylearning-test mylearning
 
     - name: Stop container
       run: docker stop myapp-test
 
     - name: Stop container
-      run: docker stop mylearning
+      run: docker stop mylearning-test
