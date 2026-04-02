@@ -10,6 +10,8 @@ services:
 
   myapp:
     build: ./myapp
+    image: myapp #explicilty define image name
+    container_name: myapp-container
     depends_on:
       - db
     environment:
@@ -20,4 +22,5 @@ services:
 
   mylearning:
     build: ./mylearning
+    image: mylearning #explicilty define image name
     container_name: mylearning-container
