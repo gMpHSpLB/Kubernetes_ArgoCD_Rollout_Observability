@@ -25,8 +25,8 @@ jobs:
     
     - name: Set variables
       run: |
-        echo "IMAGE_MYAPP=ghcr.io/${{ env.REPO_LOWER }}/myapp" >> $GITHUB_ENV
-        echo "IMAGE_MYLEARNING=ghcr.io/${{ env.REPO_LOWER }}/mylearning" >> $GITHUB_ENV
+        echo "IMAGE_MYAPP=ghcr.io/$REPO_LOWER/myapp" >> $GITHUB_ENV
+        echo "IMAGE_MYLEARNING=ghcr.io/$REPO_LOWER/mylearning" >> $GITHUB_ENV
   
     - name: Set Version
       run: echo "VERSION=$(GITHUB_REF_NAME)" >> $GITHUB_ENV
@@ -55,16 +55,16 @@ jobs:
       #           myapp:${{ github.sha }} : The unique commit ID (SHA), exact version
       #           Use when : Do debugging, rollback, production stability
       run:  |  
-        docker tag myapp env.IMAGE_MYAPP:latest
-        docker tag myapp env.IMAGE_MYAPP:env.VERSION
+        docker tag myapp $IMAGE_MYAPP:latest
+        docker tag myapp $IMAGE_MYAPP:$VERSION
 
-        docker tag mylearning env.IMAGE_MYLEARNING:latest
-        docker tag mylearning env.IMAGE_MYLEARNING:env.VERSION
+        docker tag mylearning $IMAGE_MYLEARNING:latest
+        docker tag mylearning $IMAGE_MYLEARNING:$VERSION
 
     - name: Push Docker images #Push images to registry
       run: |
-        docker push env.IMAGE_MYAPP:latest
-        docker push env.IMAGE_MYAPP:env.VERSION
+        docker push $IMAGE_MYAPP:latest
+        docker push $IMAGE_MYAPP:$VERSION
 
-        docker push env.IMAGE_MYLEARNING:latest
-        docker push env.IMAGE_MYLEARNING:env.VERSION
+        docker push $IMAGE_MYLEARNING:latest
+        docker push $IMAGE_MYLEARNING:$VERSION
