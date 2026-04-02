@@ -32,7 +32,7 @@ def db_connection():
     else:
         # Docker mode (use docker-compose DB)
         conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "db"),
+            host=os.getenv("DB_HOST", "localhost"),
             database="mydb",
             user="myuser",
             password="mypassword",
