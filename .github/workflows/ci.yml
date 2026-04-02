@@ -8,7 +8,7 @@ jobs:
   # ---------- CI - Need to run docker only ----------
   docker:
     runs-on: ubuntu-latest
-    needs: [myapp, mylearning]
+    #needs: [myapp, mylearning]
 
     steps:
     - uses: actions/checkout@v3
