@@ -1,8 +1,10 @@
 name: Monorepo CI
 
-on:
-  push:
-    branches: [ main ]
+on: # this is GitHub Actions trigger
+  push: #Both CI and CD happens
+    branches: [ main ] # main is production branch
+  pull_request: # Only CI happens, wait for approve and merge 
+    branches: [ main ] #
 
 jobs:
   # ---------- CI - Need to run docker only ----------
@@ -23,3 +25,44 @@ jobs:
       run: |
         make run
         make check-api
+
+    - name: Login to GitHub_Container_Registry # CD
+      # Below line: 
+      # It logs your CI pipeline into GitHub Container Registry so Docker can push images securely
+      # secrets.GITHUB_TOKEN - This is an auto-generated secure token from GitHub. 
+      #       No need to create manually
+      #       Valid only during workflow run
+      #       Has permission to push images to your repo
+      # docker login ghcr.io
+      #      This tells Docker: “I want to authenticate with GitHub Container Registry” 
+      # -u ${{ github.actor }} : Username = GitHub user who triggered the workflow
+      # --password-stdin : Tells Docker: “Read password from input (stdin), not from command line”
+      if: github.ref == 'refs/heads/main' #don’t do CD on PR 
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Tag Docker images # Tag docker images
+      # Convert your local image into:
+      #    registry-compatible name
+      #    versioned artifact 
+      # Tag Format for GHRC : ghcr.io/<owner>/<repo>/<image>:<tag> 
+      #    `myapp` : your local image, `ghcr.io` : registry, `${{ github.repository }}`: `username/repo`, `myapp` : image name, `latest` : tag 
+      #     Here, myapp:latest -  Always points to newest version, Immutable version (never changes)
+      #           Use When : Do local testing and quick run
+      #           myapp:${{ github.sha }} : The unique commit ID (SHA), exact version
+      #           Use when : Do debugging, rollback, production stability
+      if: github.ref == 'refs/heads/main'
+      run:  |  
+        docker tag myapp ghcr.io/${{ github.repository }}/myapp:latest
+        docker tag myapp ghcr.io/${{ github.repository }}/myapp:${{ github.sha }}
+
+        docker tag mylearning ghcr.io/${{ github.repository }}/mylearning:latest
+        docker tag mylearning ghcr.io/${{ github.repository }}/mylearning:${{ github.sha }}
+
+    - name: Push Docker images #Push images to registry
+      if: github.ref == 'refs/heads/main'
+      run: |
+        docker push ghcr.io/${{ github.repository }}/myapp:latest
+        docker push ghcr.io/${{ github.repository }}/myapp:${{ github.sha }}
+
+        docker push ghcr.io/${{ github.repository }}/mylearning:latest
+        docker push ghcr.io/${{ github.repository }}/mylearning:${{ github.sha }}
