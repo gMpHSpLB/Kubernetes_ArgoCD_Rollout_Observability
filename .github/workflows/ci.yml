@@ -26,6 +26,9 @@ jobs:
         make run
         make check-api
 
+    - name: Set lowercase repo #Convert to lowercase in CD, Docker image names MUST be lowercase
+      run: echo "REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+    
     - name: Login to GitHub_Container_Registry # CD
       # Below line: 
       # It logs your CI pipeline into GitHub Container Registry so Docker can push images securely
@@ -52,17 +55,17 @@ jobs:
       #           Use when : Do debugging, rollback, production stability
       if: github.ref == 'refs/heads/main'
       run:  |  
-        docker tag myapp ghcr.io/${{ github.repository }}/myapp:latest
-        docker tag myapp ghcr.io/${{ github.repository }}/myapp:${{ github.sha }}
+        docker tag myapp ghcr.io/${{ env.REPO_LOWER }}/myapp:latest
+        docker tag myapp ghcr.io/${{ env.REPO_LOWER }}/myapp:${{ github.sha }}
 
-        docker tag mylearning ghcr.io/${{ github.repository }}/mylearning:latest
-        docker tag mylearning ghcr.io/${{ github.repository }}/mylearning:${{ github.sha }}
+        docker tag mylearning ghcr.io/${{ env.REPO_LOWER }}/mylearning:latest
+        docker tag mylearning ghcr.io/${{ env.REPO_LOWER }}/mylearning:${{ github.sha }}
 
     - name: Push Docker images #Push images to registry
       if: github.ref == 'refs/heads/main'
       run: |
-        docker push ghcr.io/${{ github.repository }}/myapp:latest
-        docker push ghcr.io/${{ github.repository }}/myapp:${{ github.sha }}
+        docker push ghcr.io/${{ env.REPO_LOWER }}/myapp:latest
+        docker push ghcr.io/${{ env.REPO_LOWER }}/myapp:${{ github.sha }}
 
-        docker push ghcr.io/${{ github.repository }}/mylearning:latest
-        docker push ghcr.io/${{ github.repository }}/mylearning:${{ github.sha }}
+        docker push ghcr.io/${{ env.REPO_LOWER }}/mylearning:latest
+        docker push ghcr.io/${{ env.REPO_LOWER }}/mylearning:${{ github.sha }}
