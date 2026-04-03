@@ -1,0 +1,232 @@
+name: Monorepo CI-CD pipeline # For dev/staging/prod environment
+#1. Build Promotion Flow: You don’t just run CI once — you run different stages for different environments
+#     build once → promote many times
+#     dev → staging → prod (same image is promoted to different environment)
+#2. Each environment has: 
+#     - its own purpose
+#     - its own trigger
+#     - its own level of strictness
+#3. DEV (Continuous Integration)
+#     - Trigger: every push
+#     - pytest -> lint -> docker build -> (optional) push :dev image
+#4. STAGING (Pre-production validation)
+#     - Trigger: manual / PR merge / promotion
+#     - promote :dev -> :staging
+#     - use built image -> integration tests -> API checks
+#5. PROD (Release / CD)
+#     - Trigger: git tag (v1.0.0)
+#     - promote :staging -> vX.X.X
+#     - tag image -> push to registry -> deploy (optional)
+#6. As we are using Github, we will add environment protection (in GitHub, Settings → Environments)
+#     - Create dev, staging, production
+#Explaination for below jobs:
+#ci runs on every relevant execution and computes shared image names once.
+#deploy-dev pushes immutable dev images to GHCR.
+#deploy-staging is manual through workflow_dispatch, so you can control promotion.
+#deploy-prod runs only for version tags like v1.0.0. if: conditions for tag-based production deploys
+#GitHub Environments can protect staging and production with approvals and secrets
+
+on: # this is GitHub Actions trigger
+  push: #Both CI and CD happens. 'git tag v1.0.0' then 'git push origin v1.0.0'
+    tags:
+      - 'v*' # trigger only on version tags
+
+  #GitHub Actions. It uses workflow_dispatch for controlled staging promotion, 
+  #tag-based production deploys, environment protection, and shared values passed 
+  #with job outputs. GitHub Actions supports manual triggers, environment protection rules, 
+  #and passing outputs between jobs this way.
+  workflow_dispatch: #for manual staging deploys
+    inputs:
+      promote_to_staging:
+        description: 'Promote current dev image to staging'
+        required: false
+        type: boolean
+        default: false
+
+permissions: #Add permissions in workflow. Make sure to Enable package permissions in Github : Enable package permissions
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # You will split your pipeline into 3 logical stages(dev,staging/prod) but CI job will run always
+  # CI job (always runs)
+  #For our workflow, the cleanest approach is
+  #    Set shared values in the ci job.
+  #    Expose them as job outputs.
+  #    Read them in deploy-dev and deploy-staging using needs.ci.outputs...
+  ci: 
+    runs-on: ubuntu-latest
+    outputs:
+      repo_lower: ${{ steps.vars.outputs.repo_lower }}
+      image_myapp_dev: ${{ steps.vars.outputs.image_myapp_dev }}
+      image_mylearning_dev: ${{ steps.vars.outputs.image_mylearning_dev }}
+      image_myapp_staging: ${{ steps.vars.outputs.image_myapp_staging }}
+      image_mylearning_staging: ${{ steps.vars.outputs.image_mylearning_staging }}
+      image_myapp_prod: ${{ steps.vars.outputs.image_myapp_prod }}
+      image_mylearning_prod: ${{ steps.vars.outputs.image_mylearning_prod }}
+    
+    steps:
+      #Below command tells GitHub Actions to run the official checkout action version 4, which downloads your repository code into the runner so later steps can use it. Without it, commands like docker build, ls, or cat usually won’t have your project files available
+      - uses: actions/checkout@v4
+
+      - id: vars
+        name: Set shared variables
+        run: |
+          REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+          echo "repo_lower=$REPO_LOWER" >> $GITHUB_OUTPUT
+          echo "image_myapp_dev=${REGISTRY}/$REPO_LOWER/myapp:dev" >> $GITHUB_OUTPUT
+          echo "image_mylearning_dev=${REGISTRY}/$REPO_LOWER/mylearning:dev" >> $GITHUB_OUTPUT
+          echo "image_myapp_staging=${REGISTRY}/$REPO_LOWER/myapp:staging" >> $GITHUB_OUTPUT
+          echo "image_mylearning_staging=${REGISTRY}/$REPO_LOWER/mylearning:staging" >> $GITHUB_OUTPUT
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="latest"
+          fi
+          echo "image_myapp_prod=${REGISTRY}/$REPO_LOWER/myapp:$VERSION" >> $GITHUB_OUTPUT
+          echo "image_mylearning_prod=${REGISTRY}/$REPO_LOWER/mylearning:$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build Docker images
+        run: docker compose build
+
+      - name: Run Docker tests
+        run: make test-docker
+
+      - name: Check API
+        run: |
+          make run
+          make check-api
+
+  # CD - Dev (auto deploy)
+  # It triggered/runs when 
+  #    push code to the repository (like: git push origin main), or.
+  #    manually run the workflow from the GitHub Actions UI
+  deploy-dev:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: dev
+    #run the job or step only when the workflow was triggered either by a push event or by a manual run from the GitHub Actions UI. GitHub Actions commonly uses github.event_name to distinguish which event started the workflow.
+    #github.event_name == 'push' means the workflow was started by a code push.
+    #github.event_name == 'workflow_dispatch' means the workflow was started manually.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Login to GitHub_Container_Registry # CD
+      # Below line: 
+      # It logs your CI pipeline into GitHub Container Registry so Docker can push images securely
+      # secrets.GITHUB_TOKEN - This is an auto-generated secure token from GitHub. 
+      #       No need to create manually
+      #       Valid only during workflow run
+      #       Has permission to push images to your repo
+      # docker login ghcr.io
+      #      This tells Docker: “I want to authenticate with GitHub Container Registry” 
+      # -u ${{ github.actor }} : Username = GitHub user who triggered the workflow
+      # --password-stdin : Tells Docker: “Read password from input (stdin), not from command line”
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+    
+    - name: Build and Push dev images #Push images to registry
+      #builds a Docker image from the Dockerfile inside the ./myapp directory, and tags the resulting image with the name stored in IMAGE_MYAPP. The build context is ./myapp, so Docker sends that folder’s contents to the build process.
+      #Reused those outputs in later jobs with needs.ci.outputs...
+      run: |
+        docker build -t ${{ needs.ci.outputs.image_myapp_dev }} ./myapp
+        docker build -t ${{ needs.ci.outputs.image_mylearning_dev }} ./mylearning
+        docker push ${{ needs.ci.outputs.image_myapp_dev }}
+        docker push ${{ needs.ci.outputs.image_mylearning_dev }}
+    
+    - name: Run dev stack from registry images
+      env:
+        IMAGE_MYAPP_DEV: ${{ needs.ci.outputs.image_myapp_dev }}
+        IMAGE_MYLEARNING_DEV: ${{ needs.ci.outputs.image_mylearning_dev }}
+      run: |
+        docker compose -f docker-compose.dev.yml down -v --remove-orphans
+        docker compose -f docker-compose.dev.yml up -d
+        sleep 15
+
+    - name: Run dev API checks
+      run: |
+        sleep 10
+        curl -f http://localhost:8000/docs || exit 1
+
+    - name: Tear down dev stack
+      if: always()
+      run: docker compose -f docker-compose.dev.yml down -v
+
+  # CD - Staging (controlled)
+  # This runs when you manually trigger the workflow in GitHub Actions and choose promote_to_staging = true.
+  deploy-staging:
+    needs: [ci, deploy-dev] #needs: deploy-dev, which would not let it access outputs from ci unless it also depended on ci
+    runs-on: ubuntu-latest
+    environment: staging
+    # manual through workflow_dispatch, so you can control promotion.
+    # GitHub Actions supports boolean workflow_dispatch inputs, so this condition becomes true only when you manually trigger the workflow and check that input.
+    # If you want it to be true
+    #    When you click Run workflow in GitHub Actions, set Promote dev image to staging to true. If it is left unchecked, it will be false.
+    if: github.event_name == 'workflow_dispatch' && inputs.promote_to_staging == true
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Login to GitHub Container Registry
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+    - name: Promote dev images to staging
+      run: |
+        docker pull ${{ needs.ci.outputs.image_myapp_dev }}
+        docker tag ${{ needs.ci.outputs.image_myapp_dev }} ${{ needs.ci.outputs.image_myapp_staging }}
+        docker push ${{ needs.ci.outputs.image_myapp_staging }}
+
+        docker pull ${{ needs.ci.outputs.image_mylearning_dev }}
+        docker tag ${{ needs.ci.outputs.image_mylearning_dev }} ${{ needs.ci.outputs.image_mylearning_staging }}
+        docker push ${{ needs.ci.outputs.image_mylearning_staging }}
+
+   -name: Run staging stack
+    env:
+      IMAGE_MYAPP_STAGING: ${{ needs.ci.outputs.image_myapp_staging }}
+      IMAGE_MYLEARNING_STAGING: ${{ needs.ci.outputs.image_mylearning_staging }}
+    run: |
+      docker compose -f docker-compose.staging.yml down -v --remove-orphans
+      docker compose -f docker-compose.staging.yml up -d
+      sleep 15 
+
+    -name: Run staging API checks
+    run: |
+      sleep 10
+      curl -f http://localhost:8000/docs || exit 1
+
+    -name: Tear down staging stack
+    if: always()
+    run: docker compose -f docker-compose.staging.yml down -v
+  
+  
+  #This runs when you create and push a version tag like
+  #    git tag v1.0.0
+  #    git push origin v1.0.0
+  deploy-prod:
+    needs: [ci, deploy-staging]
+    runs-on: ubuntu-latest
+    environment: production
+    #run this job or step only when the Git ref that triggered the workflow is a tag whose name starts with v. For example, it matches refs/tags/v1.0.0 but not refs/heads/main
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Promote staging images to production
+        run: |
+          docker pull ${{ needs.ci.outputs.image_myapp_staging }}
+          docker tag ${{ needs.ci.outputs.image_myapp_staging }} ${{ needs.ci.outputs.image_myapp_prod }}
+          docker push ${{ needs.ci.outputs.image_myapp_prod }}
+
+          docker pull ${{ needs.ci.outputs.image_mylearning_staging }}
+          docker tag ${{ needs.ci.outputs.image_mylearning_staging }} ${{ needs.ci.outputs.image_mylearning_prod }}
+          docker push ${{ needs.ci.outputs.image_mylearning_prod }}
+  
+  

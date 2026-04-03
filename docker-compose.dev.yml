@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: mypassword
       POSTGRES_DB: mydb
     ports:
-      - "5433:5432"   #Host : 5433 , Container : 5432
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U myuser -d mydb"]
       interval: 5s
@@ -14,10 +14,8 @@ services:
       retries: 10
 
   myapp:
-    build: 
-      context: ./myapp
-    image: myapp #explicilty define docker image name otherwise docker assigns random names.
-    container_name: myapp-container
+    image: ${IMAGE_MYAPP_DEV}
+    container_name: myapp-dev
     depends_on:
       - db
     environment:
@@ -27,7 +25,5 @@ services:
       - "8000:8000"
 
   mylearning:
-    build: 
-      context: ./mylearning
-    image: mylearning #explicilty define image name
-    container_name: mylearning-container
+    image: ${IMAGE_MYLEARNING_DEV}
+    container_name: mylearning-dev

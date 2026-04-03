@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: mypassword
       POSTGRES_DB: mydb
     ports:
-      - "5433:5432"   #Host : 5433 , Container : 5432
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U myuser -d mydb"]
       interval: 5s
@@ -14,20 +14,19 @@ services:
       retries: 10
 
   myapp:
-    build: 
-      context: ./myapp
-    image: myapp #explicilty define docker image name otherwise docker assigns random names.
-    container_name: myapp-container
+    image: ${IMAGE_MYAPP_STAGING} #will be provided by your deploy-staging job via environment variables from ci-cd.yml
+    container_name: myapp-staging
     depends_on:
       - db
     environment:
       DB_HOST: db
       DB_PORT: 5432
+      ENV: staging
     ports:
       - "8000:8000"
 
   mylearning:
-    build: 
-      context: ./mylearning
-    image: mylearning #explicilty define image name
-    container_name: mylearning-container
+    image: ${IMAGE_MYLEARNING_STAGING} ##will be provided by your deploy-staging job via environment variables from ci-cd.yml
+    container_name: mylearning-staging
+    environment:
+      ENV: staging
