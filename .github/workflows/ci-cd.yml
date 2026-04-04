@@ -176,6 +176,9 @@ jobs:
         curl -f http://localhost:8000/docs || exit 1
 
     - name: Tear down dev stack
+      env:
+        IMAGE_MYAPP_DEV: ${{ needs.ci.outputs.image_myapp_dev }}
+        IMAGE_MYLEARNING_DEV: ${{ needs.ci.outputs.image_mylearning_dev }}
       if: always()
       run: docker compose -f docker-compose.dev.yml down -v
 
@@ -247,6 +250,9 @@ jobs:
         curl -f http://localhost:8000/docs || exit 1
 
     - name: Tear down staging stack
+      env:
+        IMAGE_MYAPP_STAGING: ${{ needs.ci.outputs.image_myapp_staging }}
+        IMAGE_MYLEARNING_STAGING: ${{ needs.ci.outputs.image_mylearning_staging }}
       if: always()
       run: docker compose -f docker-compose.staging.yml down -v
   
