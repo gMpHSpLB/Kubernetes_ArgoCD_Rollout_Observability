@@ -1,0 +1,30 @@
+Date: 05-04-2026
+
+A. What till now we have done:
+- Code is written and structured
+- Dependencies are managed (Poetry)
+- Apps are containerized with Docker
+- Code is version-controlled with Git
+- CI pipelines run automatically using GitHub Actions
+- Databases integrate with your backend
+- Apps behave consistently across environments
+✅ Multiple projects in one repo
+✅ Separate environments
+✅ Run both independently
+✅ Clean professional setup
+
+✅ Dockerized services
+✅ Parallel test execution (Makefile)
+✅ Testcontainers (DB isolation)
+✅ CI pipeline
+✅ Multi-service repo (myapp + mylearning)
+✅ Basic CD (image push attempts)
+
+B. Below Tag is created today, use to access the this state of repository whenever you want. 
+
+git add -A
+git commit -m "Checkpoint before refactor"
+git tag -a refactor-start -m "Start of architecture refactor"
+
+Later, you can go back to that exact commit:
+git checkout refactor-start
