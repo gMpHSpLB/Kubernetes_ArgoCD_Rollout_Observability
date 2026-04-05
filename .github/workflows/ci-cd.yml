@@ -130,7 +130,7 @@ jobs:
         : "${DB_PASSWORD:=mypassword}"
         echo "Dev DB config looks reasonable."
 
-    - name: Login to GitHub_Container_Registry # CD
+    - name: Login to GitHub_Container_Registry # Use GITHUB_TOKEN (not using PAT )
       # Below line: 
       # It logs your CI pipeline into GitHub Container Registry so Docker can push images securely
       # secrets.GITHUB_TOKEN - This is an auto-generated secure token from GitHub. 
