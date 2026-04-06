@@ -11,6 +11,8 @@ dependencies = [
 ]
 
 [tool.poetry]
+name = "mylearning"
+version = "0.1.0"
 # Enable package mode and tell poetry where the package lives
 # because your code lives under src/exercises. That makes import 
 # exercises work naturally from tests or other modules.
@@ -24,7 +26,8 @@ build-backend = "poetry.core.masonry.api"
 
 [dependency-groups]
 dev = [
-  "pytest (>=9.0.2,<10.0.0)"
+  "pytest (>=9.0.2,<10.0.0)",
+  "pytest-xdist (>=3.0)"
 ]
 
 [tool.pytest.ini_options]

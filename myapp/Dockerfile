@@ -19,10 +19,9 @@ ARG INSTALL_DEV=false
 # Uses poetry install --only main for runtime; dev tools will be in your CI/WSL, not in the container
 COPY pyproject.toml poetry.lock ./
 RUN pip install --no-cache-dir poetry && \
-    poetry --version && \
-    poetry install --only main --no-interaction --no-ansi -vvv && \
+    poetry install --only main --no-interaction --no-ansi && \
     if [ "$INSTALL_DEV" = "true" ]; then \
-      poetry install --with dev --no-interaction --no-ansi -vvv; \
+      poetry install --with dev --no-interaction --no-ansi; \
     fi
 
 # Copy source code only

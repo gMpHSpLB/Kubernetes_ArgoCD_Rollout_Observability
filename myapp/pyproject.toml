@@ -10,7 +10,7 @@ name = "myapp"
 version = "0.1.0"
 description = "sample app"
 authors = [
-    {name = "Your Name",email = "you@example.com"}
+    {name = "hcrmclass", email = "hcrmclass@gmail.com"}
 ]
 requires-python = ">=3.11,<4.0"
 dependencies = [
