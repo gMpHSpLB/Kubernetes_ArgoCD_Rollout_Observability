@@ -16,11 +16,14 @@ services:
   myapp:
     build: 
       context: ./myapp
+      args:
+        INSTALL_DEV: "true" #build with dev dependencies from *.toml file
     image: myapp #explicilty define docker image name otherwise docker assigns random names.
     container_name: myapp-container
     depends_on:
       - db
     environment:
+     APP_ENV: ci
      DB_HOST: db
      DB_PORT: 5432
      DB_NAME: mydb
@@ -32,5 +35,9 @@ services:
   mylearning:
     build: 
       context: ./mylearning
+      args:
+        INSTALL_DEV: "true" #build with dev dependencies.
     image: mylearning #explicilty define image name
     container_name: mylearning-container
+    environment:
+      APP_ENV: ci

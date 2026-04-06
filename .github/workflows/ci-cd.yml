@@ -144,7 +144,7 @@ jobs:
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
     
     - name: Build and Push dev images #Push images to registry
-      #builds a Docker image from the Dockerfile inside the ./myapp directory, and tags the resulting image with the name stored in IMAGE_MYAPP. The build context is ./myapp, so Docker sends that folder’s contents to the build process.
+      #builds a Docker image from the Dockerfile inside the ./myapp directory, and tags the resulting image with the name stored in IMAGE_MYAPP. The build context is ./myapp, so Docker sends that folder’s contents to the build process. It does not read docker-compose.yml file.
       #Reused those outputs in later jobs with needs.ci.outputs...
       run: |
         docker build -t ${{ needs.ci.outputs.image_myapp_dev }} ./myapp
@@ -156,6 +156,10 @@ jobs:
       #docker compose is better when you want the configuration saved in 
       #a file (YAML), especially if your app uses multiple services that need to 
       #start together.
+      #docker compose -f docker-compose.dev.yml up -d 
+      #     Creates and starts the containers for all services defined in 
+      #     that file (or only the services you name after up).If images do not exist yet for services with build:, Compose 
+      #     will build them first, then start the containers. -d (detached mode) Runs the containers in the background, returning control to your terminal immediately.
       env:
         IMAGE_MYAPP_DEV: ${{ needs.ci.outputs.image_myapp_dev }}
         IMAGE_MYLEARNING_DEV: ${{ needs.ci.outputs.image_mylearning_dev }}

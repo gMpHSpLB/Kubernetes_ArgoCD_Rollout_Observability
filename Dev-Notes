@@ -1,0 +1,59 @@
+Created on 05-04-2026
+1. We have two very different types of projects:
+
+🟦 myapp → Service (backend/API)
+Needs full architecture (api, services, db, etc.)
+Runs as a server
+Has DB, CI/CD, Docker, etc.
+
+🟨 mylearning → Library / Module
+Pure Python logic (algorithms, exercises)
+Has CI/CD, Docker, etc.
+
+2. For myapp:
+        Introduce a clear FastAPI-style structure (even if you don’t use FastAPI, follow the pattern):
+        ARCHITECTURE FLOW (VERY IMPORTANT): Client → API → Service → DB
+
+        myapp/src/myapp/
+            api/ or routers/ – endpoints. (HTTP handling)
+            services/ – business logic. 
+            models/ – Pydantic/ORM models. (Data structure)
+            core/config.py – (Config Management-Central place for ALL environment variables) settings, env parsing. (Config + DB)
+            core/db.py – DB session management.
+            deps/ – dependency injection / wiring.
+
+        myapp/src/myapp/
+        │
+        ├── api/                # FastAPI routers (HTTP layer)
+        │   └── v1/
+        │       └── routes.py
+        │
+        ├── services/           # Business logic
+        │   └── user_service.py
+        │
+        ├── models/             # DB + Pydantic models
+        │   ├── db_models.py
+        │   └── schemas.py
+        │
+        ├── core/               # Core config + DB
+        │   ├── config.py
+        │   └── db.py
+        │
+        ├── deps/               # Dependency injection
+        │   └── dependencies.py
+        │
+        └── main.py             # App entrypoint
+
+3. For mylearning : A reusable Python package (library)
+        mylearning/
+        │
+        ├── src/
+        │   └── exercises/
+        │       ├── fibonacci.py
+        │       └── __init__.py
+        │
+        ├── tests/
+        │   └── test_exercises.py
+        │
+        ├── pyproject.toml
+        └── README.md        

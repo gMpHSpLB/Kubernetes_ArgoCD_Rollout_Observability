@@ -25,6 +25,6 @@ B. Below Tag is created today, use to access the this state of repository whenev
 git add -A
 git commit -m "Checkpoint before refactor"
 git tag -a refactor-start -m "Start of architecture refactor"
-
+git push origin --tags
 Later, you can go back to that exact commit:
 git checkout refactor-start

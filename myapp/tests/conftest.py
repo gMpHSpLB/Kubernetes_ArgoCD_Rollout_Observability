@@ -2,41 +2,103 @@
 #No manual docker command
 #Tests are self-contained
 
+#Local	: Uses Testcontainers
+#Docker : Uses docker-compose DB
 #To achieve above
 #    use testcontainers library : poetry add --group dev testcontainers psycopg2-binary2
-import os
-import pytest
-import psycopg2
 
-USE_TESTCONTAINERS = os.getenv("USE_TESTCONTAINERS", "false") == "true"
+#To use Testcontainers cleanly with your new core/db.py (SQLAlchemy, SessionLocal), you should:
+#   Let Testcontainers create a real Postgres and a SQLAlchemy engine for tests.
+#   Override SessionLocal during tests so app code uses the container DB.
+#   Keep the option to fall back to the compose DB if you want.
+#So, 
+# Note:
+#   When USE_TESTCONTAINERS=true: a Postgres Docker container is started once per test session; all tests use it.
+#   When USE_TESTCONTAINERS=false: tests point at your compose DB (db:5432/mydb) using the same credentials as dev.
+
+import os
+from typing import Generator
+
+# Here is a minimal test that uses the new db_session 
+# fixture and your models:
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from myapp.core.db import SessionLocal as AppSessionLocal
+from myapp.models.db_models import Base
+
+USE_TESTCONTAINERS = os.getenv("USE_TESTCONTAINERS", "false").lower() == "true"
 
 if USE_TESTCONTAINERS:
     from testcontainers.postgres import PostgresContainer
 
-#Adding pytest fixture to auto start DB in pytest
-#    Before tests → starts PostgreSQL container
-#    After tests → stops automatically
+
 @pytest.fixture(scope="session")
-def db_connection():
+def engine() -> Generator:
+    """
+    Create a SQLAlchemy engine for tests.
+
+    - If USE_TESTCONTAINERS=true: start a Postgres container and use its URL.
+    - Else: use the same DB URL as your docker-compose dev DB
+      (postgresql://myuser:mypassword@db:5432/mydb).
+    """
     if USE_TESTCONTAINERS:
         with PostgresContainer("postgres:15") as postgres:
-            conn = psycopg2.connect(
-                host=postgres.get_container_host_ip(),
-                port=postgres.get_exposed_port(5432),
-                database="test",
-                user="test",
-                password="test",
-            )
-            yield conn
-            conn.close()
+            url = postgres.get_connection_url()  # SQLAlchemy-compatible URL
+            test_engine = create_engine(url)
+            yield test_engine
     else:
-        # Docker mode (use docker-compose DB)
-        conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"), #defaults for local dev while allowing full override from env in
-            database=os.getenv("DB_NAME", "mydb"),
-            user=os.getenv("DB_USER", "myuser"),
-            password=os.getenv("DB_PASSWORD", "mypassword"),
-            port=int(os.getenv("DB_PORT", "5432")),
-        )
-        yield conn
-        conn.close()
+        url = "postgresql://myuser:mypassword@db:5432/mydb"
+        test_engine = create_engine(url)
+        yield test_engine
+
+# Note: 
+# Base.metadata.create_all and drop_all ensure a fresh schema for tests.
+@pytest.fixture(scope="session")
+def db_session_factory(engine) -> Generator[sessionmaker, None, None]:
+    """
+    Create all tables once per session and return a session factory.
+
+    Tables are dropped after the whole test session finishes.
+    """
+    Base.metadata.create_all(bind=engine)
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    yield TestingSessionLocal
+
+    Base.metadata.drop_all(bind=engine)
+
+#Rollback per test (as in the fixture).
+@pytest.fixture(scope="function")
+def db_session(db_session_factory: sessionmaker) -> Generator[Session, None, None]:
+    """
+    Provide a fresh DB session per test.
+
+    Rolls back and closes after each test.
+    """
+    db = db_session_factory()
+    try:
+        yield db
+        db.commit()
+    finally:
+        db.rollback()
+        db.close()
+
+# autouse fixture overrides SessionLocal so your normal app DB code (DI, get_db) 
+# uses this test engine automatically.
+@pytest.fixture(autouse=True)
+def override_app_sessionlocal(monkeypatch, db_session_factory: sessionmaker):
+    """
+    Override myapp.core.db.SessionLocal so app code uses the test DB.
+
+    This way, any code that calls SessionLocal() (e.g., in get_db)
+    will use the Testcontainers / test engine instead of the real one.
+    """
+    def _test_sessionlocal():
+        return db_session_factory()
+
+    # Monkeypatch the SessionLocal used in the app
+    # Because we monkeypatch SessionLocal, your FastAPI 
+    # dependencies (using get_db) also work in integration tests with TestClient
+    monkeypatch.setattr("myapp.core.db.SessionLocal", _test_sessionlocal)

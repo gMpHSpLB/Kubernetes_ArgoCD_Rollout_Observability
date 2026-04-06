@@ -1,15 +1,14 @@
+#Main App : FastAPI-style entrypoint
+# src/myapp/main.py
 from fastapi import FastAPI
-from sqlalchemy import text
-from myapp.database import engine
+from myapp.api.v1.routes import router as v1_router
+from myapp.core.config import settings
 
-app = FastAPI()
+app = FastAPI(title=settings.app_name)
 
-@app.get("/")
-def root():
-    return {"message": "API running 🚀"}
+app.include_router(v1_router, prefix="/api/v1")
 
-@app.get("/db")
-def test_db():
-    with engine.connect() as conn:
-        result = conn.execute(text("SELECT 1"))
-        return {"db_response": [row[0] for row in result]}
+
+@app.get("/health", tags=["health"])
+def health() -> dict:
+    return {"status": "ok", "env": settings.app_env}

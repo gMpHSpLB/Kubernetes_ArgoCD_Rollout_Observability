@@ -1,3 +1,10 @@
+# PEP 621 is a Python packaging standard that defines how to store 
+# a project’s metadata inside pyproject.toml in a uniform way.
+# In practice, it means:
+#        - You put things like name, version, description, authors, dependencies under a [project] section in pyproject.toml.
+#        - Different tools (Poetry, Hatch, PDM, uv, setuptools, etc.) all read that same [project] metadata instead of each inventing its own format.
+#        - Because of this standardization, you can switch or mix tools more easily without rewriting your metadata; it’s not “Poetry-only” or “setuptools-only” anymore.
+
 [project]
 name = "myapp"
 version = "0.1.0"
@@ -12,7 +19,8 @@ dependencies = [
     "langchain (>=1.2.13,<2.0.0)",
     "openai (>=2.30.0,<3.0.0)",
     "psycopg2-binary (>=2.9.11,<3.0.0)",
-    "sqlalchemy (>=2.0.48,<3.0.0)"
+    "sqlalchemy (>=2.0.48,<3.0.0)",
+    "pydantic-settings (>=2.0)"
 ]
 
 [tool.poetry]
@@ -28,7 +36,8 @@ dev = [
     "ruff (>=0.15.8,<0.16.0)",
     "black (>=26.3.1,<27.0.0)",
     "testcontainers (>=4.14.2,<5.0.0)",
-    "psycopg2-binary (>=2.9.11,<3.0.0)"
+    "psycopg2-binary (>=2.9.11,<3.0.0)",
+    "pytest-xdist (>=3.0)"
 ]
 
 #pytest config
