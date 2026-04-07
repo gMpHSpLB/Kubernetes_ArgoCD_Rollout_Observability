@@ -164,6 +164,7 @@ jobs:
       #     Creates and starts the containers for all services defined in 
       #     that file (or only the services you name after up).If images do not exist yet for services with build:, Compose 
       #     will build them first, then start the containers. -d (detached mode) Runs the containers in the background, returning control to your terminal immediately.
+      #     -f tells docker compose which compose file to use, instead of the default one.
       env:
         IMAGE_MYAPP_DEV: ${{ needs.ci.outputs.image_myapp_dev }}
         IMAGE_MYLEARNING_DEV: ${{ needs.ci.outputs.image_mylearning_dev }}
@@ -177,9 +178,10 @@ jobs:
         docker compose -f docker-compose.dev.yml down -v --remove-orphans
         docker compose -f docker-compose.dev.yml up -d
         sleep 15
-        #Run pytest explicilty for boths 
-        docker compose -f docker-compose.dev.yml run --rm myapp poetry run pytest
-        docker compose -f docker-compose.dev.yml run --rm mylearning poetry run pytest
+        #Can Run pytest explicilty for boths if dev dependecies are installed in images. Please check the Dockerfile to confirm devdependecies are install or not.
+        #Note: Rightnow, We are not installing devlopment dependencies in dev/staging/prod images as we want to acchiev build once promote many approach. 
+        #docker compose -f docker-compose.dev.yml run --rm myapp poetry run pytest
+        #docker compose -f docker-compose.dev.yml run --rm mylearning poetry run pytest
 
     - name: Run dev API checks
       run: |
