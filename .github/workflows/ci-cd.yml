@@ -96,6 +96,9 @@ jobs:
       - name: Build Docker images
         run: docker compose build
 
+      - name:  Code quality checks (ruff + mypy + bandit+ format)
+        run: make quality
+
       - name: Run Docker tests
         run: make test-docker
 
@@ -318,6 +321,4 @@ jobs:
 
           docker pull ${{ needs.ci.outputs.image_mylearning_staging }}
           docker tag ${{ needs.ci.outputs.image_mylearning_staging }} ${{ needs.ci.outputs.image_mylearning_prod }}
-          docker push ${{ needs.ci.outputs.image_mylearning_prod }}
-  
-  
+          docker push ${{ needs.ci.outputs.image_mylearning_prod }}  

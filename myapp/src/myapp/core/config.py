@@ -1,11 +1,12 @@
-#Central place for ALL environment variables
-#Why this matters:
+# Central place for ALL environment variables
+# Why this matters:
 #    No scattered os.getenv()
 #    Type-safe config
 #    Works across dev/staging/prod
-#Use pydantic-settings
+# Use pydantic-settings
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     app_name: str = "MyApp"
@@ -23,4 +24,5 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-settings = Settings()
+
+settings = Settings()  # type: ignore[call-arg]

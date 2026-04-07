@@ -1,0 +1,3 @@
+#Tell Bandit to ignore asserts ( B101) in tests
+exclude_dirs:
+  - tests 

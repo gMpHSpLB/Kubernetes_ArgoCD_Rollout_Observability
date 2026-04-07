@@ -56,4 +56,32 @@ Has CI/CD, Docker, etc.
         │   └── test_exercises.py
         │
         ├── pyproject.toml
-        └── README.md        
+        └── README.md      
+4. For better code quality,
+        You will add:
+                1. Linting → ruff
+                2. Formatting → black
+                3. Import sorting → isort
+                4. Type checking → mypy
+                5. Security scan → bandit
+                6. Pre-commit hooks
+                7. CI enforcement  
+
+        - Linting is the automated checking of source code for errors, bad patterns, and style issues before the code runs. It helps improve code quality by catching mistakes early, keeping code consistent, and making it easier to read and maintain.
+
+                What it catches
+                        Syntax mistakes.
+
+                        Unused variables or imports.
+
+                        Inconsistent formatting, like spacing or naming.
+
+                        Possible bugs or risky code patterns.
+
+                        Violations of team coding rules.
+        
+        MyPy
+                MyPy checks whether your Python type hints match how your code is actually used. It helps catch mistakes like passing a string where an integer is expected, which improves reliability and makes refactoring safer.
+
+        Bandit
+                Bandit looks for common security problems in Python code, such as hard-coded passwords, insecure function use, shell injection risks, SQL injection patterns, and unsafe deserialization

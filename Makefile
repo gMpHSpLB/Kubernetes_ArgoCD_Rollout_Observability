@@ -1,3 +1,29 @@
+lint:
+	(cd myapp && poetry run ruff check . ) && \
+	(cd mylearning && poetry run ruff check . )
+
+format:
+	(cd myapp && poetry run black . ) && \
+	(cd myapp && poetry run isort . ) && \
+	(cd mylearning && poetry run black . ) && \
+	(cd mylearning && poetry run isort . ) && \
+	( cd myapp && poetry run ruff format . ) && \
+	( cd mylearning && poetry run ruff format . )
+type:
+	(cd myapp && poetry run mypy . ) && \
+	(cd mylearning && poetry run mypy . )
+
+security:
+	(cd myapp && poetry run bandit -r . -c bandit.yml ) && \
+	(cd mylearning && poetry run bandit -r . -c bandit.yml )
+
+quality:
+	@echo "Running code quality checks..."
+	make lint
+	make format
+	make type
+	make security
+
 # ---------- LOCAL TESTS ----------
 #Use wait -n trick, to detect failure correctly
 # Runs both tests in parallel

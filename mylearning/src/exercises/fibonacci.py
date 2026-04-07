@@ -1,5 +1,8 @@
-#Add docstrings
-def fibonacci(n):
+# Add docstrings
+from typing import List
+
+
+def fibonacci(n: int) -> List[int]:
     """
     Compute nth Fibonacci number.
 
@@ -15,5 +18,3 @@ def fibonacci(n):
         result.append(a)
         a, b = b, a + b
     return result
-
-

@@ -1,10 +1,13 @@
 # Models Layer - SQLAlchemy model
 # Purpose : Database structure
 from sqlalchemy import Column, Integer, String
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase
+
 
 # A minimal SQLAlchemy User model:
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
+
 
 class User(Base):
     __tablename__ = "users"

@@ -1,31 +1,31 @@
-#Auto-start DB in pytest
-#No manual docker command
-#Tests are self-contained
+# Auto-start DB in pytest
+# No manual docker command
+# Tests are self-contained
 
-#Local	: Uses Testcontainers
-#Docker : Uses docker-compose DB
-#To achieve above
+# Local	: Uses Testcontainers
+# Docker : Uses docker-compose DB
+# To achieve above
 #    use testcontainers library : poetry add --group dev testcontainers psycopg2-binary2
 
-#To use Testcontainers cleanly with your new core/db.py (SQLAlchemy, SessionLocal), you should:
+# To use Testcontainers cleanly with your new core/db.py (SQLAlchemy, SessionLocal), you should:
 #   Let Testcontainers create a real Postgres and a SQLAlchemy engine for tests.
 #   Override SessionLocal during tests so app code uses the container DB.
 #   Keep the option to fall back to the compose DB if you want.
-#So, 
+# So,
 # Note:
 #   When USE_TESTCONTAINERS=true: a Postgres Docker container is started once per test session; all tests use it.
 #   When USE_TESTCONTAINERS=false: tests point at your compose DB (db:5432/mydb) using the same credentials as dev.
 
 import os
-from typing import Generator
+from collections.abc import Generator
 
-# Here is a minimal test that uses the new db_session 
+# Here is a minimal test that uses the new db_session
 # fixture and your models:
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from myapp.core.db import SessionLocal as AppSessionLocal
 from myapp.models.db_models import Base
 
 USE_TESTCONTAINERS = os.getenv("USE_TESTCONTAINERS", "false").lower() == "true"
@@ -35,7 +35,7 @@ if USE_TESTCONTAINERS:
 
 
 @pytest.fixture(scope="session")
-def engine() -> Generator:
+def engine() -> Generator[Engine, None, None]:
     """
     Create a SQLAlchemy engine for tests.
 
@@ -53,25 +53,31 @@ def engine() -> Generator:
         test_engine = create_engine(url)
         yield test_engine
 
-# Note: 
+
+# Note:
 # Base.metadata.create_all and drop_all ensure a fresh schema for tests.
 @pytest.fixture(scope="session")
-def db_session_factory(engine) -> Generator[sessionmaker, None, None]:
+def db_session_factory(engine: Engine) -> Generator[sessionmaker[Session], None, None]:
     """
     Create all tables once per session and return a session factory.
 
     Tables are dropped after the whole test session finishes.
     """
     Base.metadata.create_all(bind=engine)
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    TestingSessionLocal: sessionmaker[Session] = sessionmaker(
+        autocommit=False, autoflush=False, bind=engine
+    )
 
     yield TestingSessionLocal
 
     Base.metadata.drop_all(bind=engine)
 
-#Rollback per test (as in the fixture).
+
+# Rollback per test (as in the fixture).
 @pytest.fixture(scope="function")
-def db_session(db_session_factory: sessionmaker) -> Generator[Session, None, None]:
+def db_session(
+    db_session_factory: sessionmaker[Session],
+) -> Generator[Session, None, None]:
     """
     Provide a fresh DB session per test.
 
@@ -85,20 +91,24 @@ def db_session(db_session_factory: sessionmaker) -> Generator[Session, None, Non
         db.rollback()
         db.close()
 
-# autouse fixture overrides SessionLocal so your normal app DB code (DI, get_db) 
+
+# autouse fixture overrides SessionLocal so your normal app DB code (DI, get_db)
 # uses this test engine automatically.
 @pytest.fixture(autouse=True)
-def override_app_sessionlocal(monkeypatch, db_session_factory: sessionmaker):
+def override_app_sessionlocal(
+    monkeypatch: pytest.MonkeyPatch, db_session_factory: sessionmaker[Session]
+) -> None:
     """
     Override myapp.core.db.SessionLocal so app code uses the test DB.
 
     This way, any code that calls SessionLocal() (e.g., in get_db)
     will use the Testcontainers / test engine instead of the real one.
     """
-    def _test_sessionlocal():
+
+    def _test_sessionlocal() -> Session:
         return db_session_factory()
 
     # Monkeypatch the SessionLocal used in the app
-    # Because we monkeypatch SessionLocal, your FastAPI 
+    # Because we monkeypatch SessionLocal, your FastAPI
     # dependencies (using get_db) also work in integration tests with TestClient
     monkeypatch.setattr("myapp.core.db.SessionLocal", _test_sessionlocal)

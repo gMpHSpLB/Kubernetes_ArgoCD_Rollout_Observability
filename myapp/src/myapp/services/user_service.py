@@ -1,6 +1,6 @@
-#Service Layer
+# Service Layer
 # Business logic lives here (NOT in API)
-# Service functions that operate on User using a SQLAlchemy Session and 
+# Service functions that operate on User using a SQLAlchemy Session and
 # your settings if needed:
 # src/myapp/services/user_service.py
 from typing import List, Optional
@@ -9,11 +9,11 @@ from sqlalchemy.orm import Session
 
 from myapp.models import db_models
 from myapp.models.schemas import UserCreate, UserRead
-from myapp.core.config import settings
 
 # DI: db is injected from FastAPI via Depends(get_db).
-# settings is available if you need env‑specific behavior (e.g., feature flags, 
+# settings is available if you need env‑specific behavior (e.g., feature flags,
 # logging decisions).
+
 
 def get_user(db: Session, user_id: int) -> Optional[UserRead]:
     user = db.get(db_models.User, user_id)
