@@ -14,7 +14,7 @@ dependencies = [
 name = "mylearning"
 version = "0.1.0"
 # Enable package mode and tell poetry where the package lives
-# because your code lives under src/exercises. That makes import 
+# because your code lives under src/exercises. That makes import
 # exercises work naturally from tests or other modules.
 packages = [
   { include = "exercises", from = "src" }
@@ -33,7 +33,8 @@ dev = [
   "isort (>=8.0.1,<9.0.0)",
   "mypy (>=1.20.0,<2.0.0)",
   "bandit (>=1.9.4,<2.0.0)",
-  "pre-commit (>=4.5.1,<5.0.0)"
+  "pre-commit (>=4.5.1,<5.0.0)",
+  "pytest-cov (>=7.1.0,<8.0.0)"
 ]
 
 [tool.pytest.ini_options]
