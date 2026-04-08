@@ -34,8 +34,8 @@ services:
   mylearning:
     image: ${IMAGE_MYLEARNING_DEV}
     container_name: mylearning-dev
-    working_dir: /app/mylearning
+    working_dir: /app
     volumes:
-      - .:/app    # same repo root
+      - ./mylearning:/app   # mount project root into /app
     environment:
       APP_ENV: dev

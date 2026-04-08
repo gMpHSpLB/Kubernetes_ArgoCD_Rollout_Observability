@@ -154,18 +154,18 @@ Has CI/CD, Docker, etc.
 
         services:
           myapp:
-            working_dir: /app/myapp
+            working_dir: /app
             volumes:
-              - .:/app
+              - ./myapp:/app
         it means:
 
         On the host (your machine or the GitHub Actions runner), . is your repo root directory.
 
         Inside the container, /app points to that same directory.
 
-                - .:/app is a bind mount: host repo → /app inside each container.
+                - ./myapp:/app is a bind mount: host repo → /app inside each container.
 
-                - working_dir makes your test command effectively run in /app/myapp or /app/mylearning, matching the repo layout.
+                - working_dir makes your test command effectively run in /app/ or /app/, matching the repo layout.
 
         2. With the bind mount:
 

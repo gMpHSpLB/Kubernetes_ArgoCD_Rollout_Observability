@@ -34,8 +34,8 @@ services:
   mylearning:
     image: ${IMAGE_MYLEARNING_STAGING} ##will be provided by your deploy-staging job via environment variables from ci-cd.yml
     container_name: mylearning-staging
-    working_dir: /app/mylearning
+    working_dir: /app
     volumes:
-      - .:/app    # same repo root
+      - ./mylearning:/app   # mount project root into /app
     environment:
       APP_ENV: staging
