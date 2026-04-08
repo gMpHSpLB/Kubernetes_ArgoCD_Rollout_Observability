@@ -14,12 +14,15 @@ services:
       retries: 10
 
   myapp:
-    build: 
+    build:
       context: ./myapp
       args:
         INSTALL_DEV: "true" #build with dev dependencies from *.toml file
     image: myapp #explicilty define docker image name otherwise docker assigns random names.
     container_name: myapp-container
+    working_dir: /app/myapp
+    volumes:
+      - .:/app    # bind mount repo root into /app
     depends_on:
       - db
     environment:
@@ -33,11 +36,14 @@ services:
       - "8000:8000"
 
   mylearning:
-    build: 
+    build:
       context: ./mylearning
       args:
         INSTALL_DEV: "true" #build with dev dependencies.
     image: mylearning #explicilty define image name
     container_name: mylearning-container
+    working_dir: /app/mylearning
+    volumes:
+      - .:/app    # same repo root
     environment:
       APP_ENV: ci

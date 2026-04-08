@@ -68,6 +68,7 @@ test:
 
 # ---------- DOCKER BUILD ----------
 #Make sure you're building images before tagging/pushing
+#make sure app images are rebuilt when you change Dockerfiles or deps:
 docker-build:
 	docker compose build #build image with dev dependency.
 
@@ -103,11 +104,13 @@ docker-db:
 #	    		- Add a threshold in your pytest command using --cov-fail-under.
 #					If coverage drops below the threshold, pytest exits non‑zero and CI fails.
 #				- Your code lives at mylearning/src/exercises/..., and the Python package name is exercises
-				- --cov must point to the importable package/module,
+#				- --cov must point to the importable package/module,
+#				- --cov-report=term-missing, which prints a table into the CI log.
+
 test-docker:
 	docker compose down -v --remove-orphans
 	#docker compose up --build --abort-on-container-exit
-	docker compose up --build -d db  # only DB, run tests in one-off containers
+	docker compose up --build -d db  # only DB, run tests in one-off containers. only builds (and starts) the db service, not myapp or mylearning.
 	sleep 10
 	@echo "Running Docker tests in parallel..."
 	(docker compose run --rm myapp poetry run pytest \

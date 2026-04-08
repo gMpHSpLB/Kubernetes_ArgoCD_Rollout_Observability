@@ -131,7 +131,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-myapp
-          path: myapp/coverage-myapp.xml#
+          path: myapp/coverage-myapp.xml
 
       - name: Upload mylearning coverage
         uses: actions/upload-artifact@v4
@@ -161,6 +161,18 @@ jobs:
       #    name: mylearning
       #    fail_ci_if_error: true
       #    token: ${{ secrets.CODECOV_TOKEN }}
+
+      # Add a coverage summary to the GitHub Actions job
+      # Use the Code Coverage Summary action to read your two XML files and produce a Markdown summary in the job log and summary.
+      - name: Coverage Summary
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: |
+            myapp/coverage-myapp.xml
+            mylearning/coverage-mylearning.xml
+          format: markdown
+          output: both         # console + job summary
+          badge: false         # you can turn this on later if you want, to generate a small badge image/link that you can show somewhere
 
       - name: Clean all
         run: |

@@ -146,3 +146,29 @@ Has CI/CD, Docker, etc.
                 A typical README badge looks like a linked image, so clicking it takes you to the coverage dashboard. Codecov also supports badges for flags, components, and bundle size in some setups
 
         Github: You have to setup Codecov and set token as well.
+8. volumes in docker-compose.yml file
+        A volume (in your case, a bind mount) is how Docker makes a folder from your machine (or GitHub runner) visible inside the container, so tests and coverage files live in the same repo tree on both sides.
+
+        1. How volumes link container ↔ repo
+        When you use this in docker-compose.yml:
+
+        services:
+          myapp:
+            working_dir: /app/myapp
+            volumes:
+              - .:/app
+        it means:
+
+        On the host (your machine or the GitHub Actions runner), . is your repo root directory.
+
+        Inside the container, /app points to that same directory.
+
+                - .:/app is a bind mount: host repo → /app inside each container.
+
+                - working_dir makes your test command effectively run in /app/myapp or /app/mylearning, matching the repo layout.
+
+        2. With the bind mount:
+
+        - Code, tests, and coverage outputs are all the same directory tree from both Docker and GitHub’s point of view.
+
+        - You edit files on the host, containers see them; containers write coverage, the host sees it.
