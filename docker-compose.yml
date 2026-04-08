@@ -44,6 +44,6 @@ services:
     container_name: mylearning-container
     working_dir: /app
     volumes:
-      - ./mylearning:/app   # mount project root into /app
+      - ./mylearning:/app   # carefully pick mount project root into /app
     environment:
       APP_ENV: ci

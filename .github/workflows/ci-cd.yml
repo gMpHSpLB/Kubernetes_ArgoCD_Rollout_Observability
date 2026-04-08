@@ -162,6 +162,12 @@ jobs:
       #    fail_ci_if_error: true
       #    token: ${{ secrets.CODECOV_TOKEN }}
 
+      - name: List coverage files
+        run: |
+          ls -R
+          ls -l myapp/coverage-myapp.xml
+          ls -l mylearning/coverage-mylearning.xml
+
       # Add a coverage summary to the GitHub Actions job
       # Use the Code Coverage Summary action to read your two XML files and produce a Markdown summary in the job log and summary.
       - name: Coverage Summary
