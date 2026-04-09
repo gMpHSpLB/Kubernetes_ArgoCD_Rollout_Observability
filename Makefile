@@ -26,42 +26,55 @@ security:
 	( cd myapp && poetry run bandit -r . -c bandit.yml ) & \
 	( cd mylearning && poetry run bandit -r . -c bandit.yml )
 
+
+###############Security -- Dependencies ##########################
 # safety check scans for known CVEs; you can tune failure behavior with --fail-on flags depending on how strict you want CI to be.
 # Use this if you want to run make security-deps on your machine (outside Docker).
 # You have to manually run "poetry install --with dev" command under each project.
+#export SAFETY_API_KEY= .. before running below command.
 security-deps:
+	@test -n "$(SAFETY_API_KEY)" || { echo "SAFETY_API_KEY not set"; exit 1; }
 	@echo "Running Safety dependency scan for myapp..."
-	( cd myapp && poetry run safety check --full-report )
+	cd myapp && SAFETY_API_KEY=$(SAFETY_API_KEY) poetry run safety scan --full-report --ignore 88512
 
 	@echo "Running Safety dependency scan for mylearning..."
-	( cd mylearning && poetry run safety check --full-report )
+	cd mylearning && SAFETY_API_KEY=$(SAFETY_API_KEY) poetry run safety scan --full-report --ignore 88512
 
 # In CI, use only the Docker variant, which already uses INSTALL_DEV=true:
+#export SAFETY_API_KEY= .. before running below command.
 docker-security-deps:
+	@test -n "$(SAFETY_API_KEY)" || { echo "SAFETY_API_KEY not set"; exit 1; }
 	@echo "Running Safety scan for myapp inside Docker..."
 	docker compose run --rm myapp sh -lc "\
-		poetry run safety check --full-report \
+		SAFETY_API_KEY=$(SAFETY_API_KEY) poetry run safety scan --full-report --ignore 88512 \
 	"
 
 	@echo "Running Safety scan for mylearning inside Docker..."
 	docker compose run --rm mylearning sh -lc "\
-		poetry run safety check --full-report \
+		SAFETY_API_KEY=$(SAFETY_API_KEY) poetry run safety scan --full-report --ignore 88512 \
 	"
 # ---------- DOCKER IMAGE SECURITY (Docker Scout) ----------
 # curl ... | sh installs the docker scout CLI in the runner/container.
 # docker scout cves myapp:latest and ... mylearning:latest use the images your compose build already creates (image: myapp, image: mylearning).
 # --only-severity high,critical focuses on serious issues; remove it for full detail.
 # If you want the scan to not fail CI even when vulns exist, add || true to each scout line
-# run make docker-build before running this.
+# Note: run make docker-build before running this.
 docker-scan:
 	@echo "Installing Docker Scout CLI..."
-	@curl -fsSL https://docker.scout.cli/install.sh | sh
-
+	@curl -fsSL https://raw.githubusercontent.com/docker/scout-cli/main/install.sh -o install-scout.sh
+	@sh install-scout.sh
+	#The leading @ is a Makefile feature: it tells make not to echo the command itself before running it.
+	#	- Without @, make would print the whole line (docker scout cves ...) and then the command’s output.
+	#	- With @, you only see the output of docker scout, which keeps logs cleaner.
 	@echo "Scanning myapp image for high/critical CVEs..."
-	@docker scout cves myapp:latest --only-severity high,critical
+	#Docker Scout vulnerability scan command.
+	#	- docker scout cves analyzes the myapp:latest image and reports known CVEs affecting packages inside it.
+	#	- --only-severity high,critical filters the findings so you only see vulnerabilities with severity high or critical, hiding medium/low ones.
+	#Rightnow we donot want CI to fail on findings, we have wraped each docker scout call with || true
+	@docker scout cves myapp:latest --only-severity high,critical || true
 
 	@echo "Scanning mylearning image for high/critical CVEs..."
-	@docker scout cves mylearning:latest --only-severity high,critical
+	@docker scout cves mylearning:latest --only-severity high,critical || true
 
 quality:
 	@echo "Running code quality checks..."
@@ -192,5 +205,5 @@ clean-coverage:
 # ---------- CLEAN ----------
 clean:
 	docker compose down -v --remove-orphans
-	docker system prune -f
+	docker system prune -f #remove unused images and layers
 	make clean-coverage

@@ -5,3 +5,4 @@ __pycache__/
 .cache/
 .poetry/
 *.xml
+install-scout.sh

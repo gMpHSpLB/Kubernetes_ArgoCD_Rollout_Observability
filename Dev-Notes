@@ -189,7 +189,7 @@ Has CI/CD, Docker, etc.
 
                 Self-hosted runners: machines you set up yourself, which can be customized for your needs
 
-10. Safety (Dependency CHeck)
+10. Safety (Dependency Check)
         OWASP Dependency-Check is a security tool that scans your project’s dependencies to find known, publicly disclosed vulnerabilities in third-party libraries.
 
         What it does
@@ -208,3 +208,40 @@ Has CI/CD, Docker, etc.
                 - It can only detect vulnerabilities that are already known and published, so it will not catch brand-new or undisclosed issues. It can also produce some false positives if a dependency is matched incorrectly.
 
                 - If you meant the Python package named safety, that is a similar dependency vulnerability checker for Python projects, also used to find known insecure packages.
+
+11. Docker image lifecycle and best pratices:
+        Docker images and containers are separate things, created at different times, and you normally reuse images and remove containers. You do not usually remove images on every make run.
+
+        - When images and containers are created
+                - Images are built once, reused many times.
+                Created by:
+                > docker build -t myapp:latest .
+                > docker compose build
+                > docker compose up --build (builds if needed, then runs)
+
+                - Containers are runtime instances of an image.
+                Created/run by:
+                > docker run myapp:latest
+                > docker compose up
+                > docker compose run myapp ...
+
+                - Stopped/removed with docker compose down or --rm.
+        - So your flow is:
+
+        1. Build (creates/updates images)
+        2. Up/run (creates containers from those images)
+        3. Down/stop (removes containers, but images stay unless you prune them)
+
+        - How to check if images exist
+        Use:
+        > docker images | grep myapp
+        > docker images | grep mylearning
+
+        - You should see lines like:
+        myapp        latest   <image-id>   ...
+        mylearning   latest   <image-id>   ...
+
+        - If you use Compose:
+        > docker compose images
+        This lists images used by services in docker-compose.yml.
+12.

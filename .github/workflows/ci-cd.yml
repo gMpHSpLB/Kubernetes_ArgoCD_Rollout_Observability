@@ -95,8 +95,12 @@ jobs:
       - name: Code quality checks (ruff + mypy + bandit+ format)
         run: make quality
 
-      - name: Docker Dependency security scan (Safety)
-        run: make docker-security-deps
+      #It runs Safety CLI’s scan against your repo, detecting vulnerable Python packages from files such as pyproject.toml, poetry.lock, requirements.txt, and virtualenvs.
+      #It does not inspect your Dockerfile, built images, OS packages, or other language ecosystems.
+      - name: Run Safety CLI to check for vulnerabilities
+        uses: pyupio/safety-action@v1
+        with:
+          api-key: ${{ secrets.SAFETY_API_KEY }}
 
       - name: Tests (local style)
         run: make test
@@ -129,7 +133,25 @@ jobs:
           make run
           make check-api
 
-      - name: Docker image security scan
+      - name: Validate Docker credentials
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          : "${DOCKER_USERNAME:?DOCKER_USERNAME is required}"
+          : "${DOCKER_PASSWORD:?DOCKER_PASSWORD is required}"
+          echo "CI Docker credentials Environments are OK."
+
+      # ---- DockerHub Login ----
+      - name: Docker login
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+
+      # ---- Docker image CVE scan (Docker Scout) ----
+      - name: Docker image security scan (Docker Scout)
         run: make docker-scan
 
     ## Code Coverage.
