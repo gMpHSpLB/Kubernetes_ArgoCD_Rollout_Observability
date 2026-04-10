@@ -1,0 +1,45 @@
+#Note:
+#   Captures common structure of dev/staging (db + images, no build, no local binds)
+#   No build: and no volumes here; this file is “runtime with images”, suitable for dev/staging/prod and for real deployment on a server.
+#   All env varies via APP_ENV, DB_*, IMAGE_*.
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydb
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d mydb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  myapp:
+    image: ${IMAGE_MYAPP}         # env var per env
+    container_name: ${MYAPP_CONTAINER_NAME:-myapp}
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "8000:8000"
+
+  mylearning:
+    image: ${IMAGE_MYLEARNING}
+    container_name: ${MYLEARNING_CONTAINER_NAME:-mylearning}
+    working_dir: /app
+    environment:
+      APP_ENV: ${APP_ENV}
+    ports:
+      - "8001:8000"

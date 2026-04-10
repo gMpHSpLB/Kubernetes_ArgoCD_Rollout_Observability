@@ -1,3 +1,5 @@
+# CI‑only docker-compose.yml (with build: and dev deps) for CI/test and
+# It does not participate in deploy stacks.
 services:
   db:
     image: postgres:15

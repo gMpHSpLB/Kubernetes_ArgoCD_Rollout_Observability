@@ -296,8 +296,8 @@ jobs:
         #     will build them first, then start the containers. -d (detached mode) Runs the containers in the background, returning control to your terminal immediately.
         #     -f tells docker compose which compose file to use, instead of the default one.
         env:
-          IMAGE_MYAPP: ${{ needs.ci.outputs.image_myapp_dev }}
-          IMAGE_MYLEARNING: ${{ needs.ci.outputs.image_mylearning_dev }}
+          IMAGE_MYAPP_DEV: ${{ needs.ci.outputs.image_myapp_dev }}
+          IMAGE_MYLEARNING_DEV: ${{ needs.ci.outputs.image_mylearning_dev }}
           APP_ENV: dev
           DB_HOST: db
           DB_PORT: 5432
@@ -305,8 +305,8 @@ jobs:
           DB_USER: myuser
           DB_PASSWORD: mypassword
         run: |
-          docker compose -f docker-compose.base.yml -f docker-compose.dev.yml down -v --remove-orphans
-          docker compose -f docker-compose.base.yml -f docker-compose.dev.yml up -d
+          docker compose -f docker-compose.dev.yml down -v --remove-orphans
+          docker compose -f docker-compose.dev.yml up -d
           sleep 15
           #Can Run pytest explicilty for boths if dev dependecies are installed in images. Please check the Dockerfile to confirm devdependecies are install or not.
           #Note: Rightnow, We are not installing devlopment dependencies in dev/staging/prod images as we want to acchiev build once promote many approach.
@@ -320,10 +320,10 @@ jobs:
 
       - name: Tear down dev stack
         env:
-          IMAGE_MYAPP: ${{ needs.ci.outputs.image_myapp_dev }}
-          IMAGE_MYLEARNING: ${{ needs.ci.outputs.image_mylearning_dev }}
+          IMAGE_MYAPP_DEV: ${{ needs.ci.outputs.image_myapp_dev }}
+          IMAGE_MYLEARNING_DEV: ${{ needs.ci.outputs.image_mylearning_dev }}
         if: always()
-        run: docker compose -f docker-compose.base.yml -f docker-compose.dev.yml down -v
+        run: docker compose -f docker-compose.dev.yml down -v
 
   # CD - Staging (controlled)
   # This runs when you manually trigger the workflow in GitHub Actions and choose promote_to_staging = true.
@@ -375,16 +375,16 @@ jobs:
       #The compose file receives generic DB_* vars that your Python code reads
       - name: Run staging stack
         env:
-          IMAGE_MYAPP: ${{ needs.ci.outputs.image_myapp_staging }}
-          IMAGE_MYLEARNING: ${{ needs.ci.outputs.image_mylearning_staging }}
+          IMAGE_MYAPP_STAGING: ${{ needs.ci.outputs.image_myapp_staging }}
+          IMAGE_MYLEARNING_STAGING: ${{ needs.ci.outputs.image_mylearning_staging }}
           DB_HOST: ${{ secrets.STAGING_DB_HOST }}
           DB_PORT: ${{ secrets.STAGING_DB_PORT }}
           DB_NAME: ${{ secrets.STAGING_DB_NAME }}
           DB_USER: ${{ secrets.STAGING_DB_USER }}
           DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
         run: |
-          docker compose docker-compose.base.yml -f docker-compose.staging.yml down -v --remove-orphans
-          docker compose docker-compose.base.yml -f docker-compose.staging.yml up -d
+          docker compose -f docker-compose.staging.yml down -v --remove-orphans
+          docker compose -f docker-compose.staging.yml up -d
           sleep 15
 
       - name: Run staging API checks
@@ -394,10 +394,10 @@ jobs:
 
       - name: Tear down staging stack
         env:
-          IMAGE_MYAPP: ${{ needs.ci.outputs.image_myapp_staging }}
-          IMAGE_MYLEARNING: ${{ needs.ci.outputs.image_mylearning_staging }}
+          IMAGE_MYAPP_STAGING: ${{ needs.ci.outputs.image_myapp_staging }}
+          IMAGE_MYLEARNING_STAGING: ${{ needs.ci.outputs.image_mylearning_staging }}
         if: always()
-        run: docker compose docker-compose.base.yml -f docker-compose.staging.yml down -v
+        run: docker compose -f docker-compose.staging.yml down -v
 
   #This runs when you create and push a version tag like
   #    git tag v1.0.0
@@ -448,54 +448,3 @@ jobs:
           docker pull ${{ needs.ci.outputs.image_mylearning_staging }}
           docker tag ${{ needs.ci.outputs.image_mylearning_staging }} ${{ needs.ci.outputs.image_mylearning_prod }}
           docker push ${{ needs.ci.outputs.image_mylearning_prod }}
-  #Deploy to real Production Server
-  #What this does:
-    # - Waits for deploy-prod to finish (so :vX.Y.Z tags are pushed).
-    # - Computes repo_lower and the version tag (v1.0.0).
-    # - Sets up SSH with your private key and known_hosts.
-    # - SSHes into the prod server, exports DB secrets and repo name, and runs ./deploy.sh v1.0.0.
-  #Rightnow there is no production server setup so we are commenting below job
-  # deploy-prod-server:
-  #   needs: [ci, deploy-prod]
-  #   runs-on: ubuntu-latest
-  #   if: startsWith(github.ref, 'refs/tags/v')
-
-  #   environment: production
-
-  #   steps:
-  #     - name: Derive repo_lower and version
-  #       id: meta
-  #       run: |
-  #         REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
-  #         echo "repo_lower=$REPO_LOWER" >> "$GITHUB_OUTPUT"
-  #         # github.ref_name is like v1.0.0
-  #         echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-
-  #     - name: Setup SSH key
-  #       run: |
-  #         mkdir -p ~/.ssh
-  #         echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
-  #         chmod 600 ~/.ssh/id_rsa
-  #         ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
-
-  #     - name: Deploy to prod server via SSH
-  #       env:
-  #         DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-  #         DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-  #         PROD_DB_HOST: ${{ secrets.PROD_DB_HOST }}
-  #         PROD_DB_PORT: ${{ secrets.PROD_DB_PORT }}
-  #         PROD_DB_NAME: ${{ secrets.PROD_DB_NAME }}
-  #         PROD_DB_USER: ${{ secrets.PROD_DB_USER }}
-  #         PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
-  #       run: |
-  #         ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "
-  #           set -euo pipefail
-  #           cd /opt/monorepo
-  #           export REPO_LOWER='${{ steps.meta.outputs.repo_lower }}'
-  #           export PROD_DB_HOST='${PROD_DB_HOST}'
-  #           export PROD_DB_PORT='${PROD_DB_PORT}'
-  #           export PROD_DB_NAME='${PROD_DB_NAME}'
-  #           export PROD_DB_USER='${PROD_DB_USER}'
-  #           export PROD_DB_PASSWORD='${PROD_DB_PASSWORD}'
-  #           ./deploy.sh '${{ steps.meta.outputs.version }}'
-  #         "

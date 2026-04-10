@@ -1,0 +1,28 @@
+#docker-compose.prod.yml that fits your current stack and promotion model.
+services:
+  myapp:
+    container_name: myapp-prod
+    # No local volume mounts in prod: image is immutable artifact
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: warn
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    restart: always
+    # In prod you typically run behind a reverse proxy / LB
+    # but if you want direct access on the host:
+    ports:
+      - "8000:8000"
+
+  mylearning:
+    container_name: mylearning-prod
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: warn
+    restart: always
+    # Only expose if you need it publicly; otherwise you can drop this
+    ports:
+      - "8001:8000"

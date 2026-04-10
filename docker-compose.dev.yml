@@ -1,41 +1,64 @@
-services:
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydb
-    ports:
-      - "5433:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U myuser -d mydb"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
+#It overrides that sit on top of docker-compose-base.yml
+services:
   myapp:
-    image: ${IMAGE_MYAPP_DEV}
     container_name: myapp-dev
-    working_dir: /app
     volumes:
-      - ./myapp:/app    # bind mount repo root into /app
-    depends_on:
-      - db
+      - ./myapp:/app  # mount project root into /app
     environment: #Python uses DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, APP_ENV. Here, DB_* are injected by the staging job, using default value
       APP_ENV: dev
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "8000:8000"
-
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-mydb}
+      DB_USER: ${DB_USER:-myuser}
+      DB_PASSWORD: ${DB_PASSWORD:-mypassword}
   mylearning:
-    image: ${IMAGE_MYLEARNING_DEV}
     container_name: mylearning-dev
-    working_dir: /app
     volumes:
-      - ./mylearning:/app   # mount project root into /app
+      - ./mylearning:/app # bind mount repo root into /app
     environment:
       APP_ENV: dev
+
+
+#Code before start-deployable-prod‑like-stack-with-Docker-Compose
+# services:
+#   db:
+#     image: postgres:15
+#     environment:
+#       POSTGRES_USER: myuser
+#       POSTGRES_PASSWORD: mypassword
+#       POSTGRES_DB: mydb
+#     ports:
+#       - "5433:5432"
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U myuser -d mydb"]
+#       interval: 5s
+#       timeout: 5s
+#       retries: 10
+
+#   myapp:
+#     image: ${IMAGE_MYAPP_DEV}
+#     container_name: myapp-dev
+#     working_dir: /app
+#     volumes:
+#       - ./myapp:/app    # bind mount repo root into /app
+#     depends_on:
+#       - db
+#     environment: #Python uses DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, APP_ENV. Here, DB_* are injected by the staging job, using default value
+#       APP_ENV: dev
+#       DB_HOST: ${DB_HOST}
+#       DB_PORT: ${DB_PORT}
+#       DB_NAME: ${DB_NAME}
+#       DB_USER: ${DB_USER}
+#       DB_PASSWORD: ${DB_PASSWORD}
+#     ports:
+#       - "8000:8000"
+
+#   mylearning:
+#     image: ${IMAGE_MYLEARNING_DEV}
+#     container_name: mylearning-dev
+#     working_dir: /app
+#     volumes:
+#       - ./mylearning:/app   # mount project root into /app
+#     environment:
+#       APP_ENV: dev
