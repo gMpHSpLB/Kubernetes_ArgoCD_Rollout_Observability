@@ -19,7 +19,7 @@ from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
 
 from fastapi import Request, Response
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger.jsonlogger import JsonFormatter  # type: ignore[attr-defined]
 
 """
 The ContextVar named _request_id_ctx_var stores the current
@@ -119,7 +119,8 @@ def setup_logging() -> None:
             datefmt="%Y-%m-%d %H:%M:%S",
         )
     else:
-        formatter = jsonlogger.JsonFormatter(
+        # formatter = jsonlogger.JsonFormatter(
+        formatter = JsonFormatter(
             # In non-dev environments, logs become JSON:
             # {
             # "timestamp": "...",
@@ -131,7 +132,6 @@ def setup_logging() -> None:
             rename_fields={"asctime": "timestamp", "levelname": "level"},
             datefmt="%Y-%m-%dT%H:%M:%SZ",
         )
-
     # Changes logging behavior for uvicorn
     # and fastapi so they follow your setup
     handler.setFormatter(formatter)

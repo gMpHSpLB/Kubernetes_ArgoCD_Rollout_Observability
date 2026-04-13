@@ -1,3 +1,5 @@
+.PHONY: lint format type security quality clean-coverage clean
+
 lint:
 	( cd myapp && poetry run ruff check . ) & \
 	P1=$$!; \
@@ -94,10 +96,10 @@ docker-scan-dev-image:
 
 quality:
 	@echo "Running code quality checks..."
-	make lint
-	make format
-	make type
-	make security
+	@$(MAKE) lint
+	@$(MAKE) format
+	@$(MAKE) type
+	@$(MAKE) security
 
 # This is combined coverage for both projects.
 # We have added this but not using it in our project
@@ -222,10 +224,10 @@ clean-coverage:
 clean:
 	docker compose down -v --remove-orphans
 	docker system prune -f #remove unused images and layers
-	make clean-coverage
+	@$(MAKE) clean-coverage
 
 # ---------- LOCAL DEV STACK WITH OBSERVABILITY ----------
-APP_ENV=dev
+APP_ENV ?=dev
 DEV_DB_HOST ?= db
 DEV_DB_PORT ?= 5432
 DEV_DB_NAME ?= mydb
