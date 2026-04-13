@@ -309,9 +309,13 @@ jobs:
           DB_USER: myuser
           DB_PASSWORD: mypassword
           LOG_LEVEL: info
-          OTEL_ENABLED: "true"
-          OTEL_SERVICE_NAME: "myapp-dev"
-          OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+          OTEL_ENABLED: true
+          OTEL_SERVICE_NAME: ${{ needs.ci.outputs.image_myapp_dev }}
+          OTEL_EXPORTER_OTLP_ENDPOINT: api.uptrace.dev:4317
+          UPTRACE_TOKEN: WLfJDCI9dKwaoXgI-Z-jFg
+          UPTRACE_DSN: https://WLfJDCI9dKwaoXgI-Z-jFg@api.uptrace.dev?grpc=4317
+          OTEL_TRACES_SAMPLER: always_on
+          DISABLE_CUSTOM_MIDDLEWARE: false
         run: |
           docker compose -f docker-compose.base.yml -f docker-compose.dev.yml down -v --remove-orphans
           docker compose -f docker-compose.base.yml -f docker-compose.dev.yml up -d
@@ -391,12 +395,16 @@ jobs:
           DB_USER: ${{ secrets.STAGING_DB_USER }}
           DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
           LOG_LEVEL: info
-          OTEL_ENABLED: "true"
-          OTEL_SERVICE_NAME: "myapp-staging"
-          OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+          OTEL_ENABLED: true
+          OTEL_SERVICE_NAME: ${{ needs.ci.outputs.image_myapp_staging }}
+          OTEL_EXPORTER_OTLP_ENDPOINT: api.uptrace.dev:4317
+          UPTRACE_TOKEN: WLfJDCI9dKwaoXgI-Z-jFg
+          UPTRACE_DSN: https://WLfJDCI9dKwaoXgI-Z-jFg@api.uptrace.dev?grpc=4317
+          OTEL_TRACES_SAMPLER: always_on
+          DISABLE_CUSTOM_MIDDLEWARE: false
         run: |
-          docker compose docker-compose.base.yml -f docker-compose.staging.yml down -v --remove-orphans
-          docker compose docker-compose.base.yml -f docker-compose.staging.yml up -d
+          docker compose -f docker-compose.base.yml -f docker-compose.staging.yml down -v --remove-orphans
+          docker compose -f docker-compose.base.yml -f docker-compose.staging.yml up -d
           sleep 15
 
       - name: Run staging API checks
@@ -409,7 +417,7 @@ jobs:
           IMAGE_MYAPP: ${{ needs.ci.outputs.image_myapp_staging }}
           IMAGE_MYLEARNING: ${{ needs.ci.outputs.image_mylearning_staging }}
         if: always()
-        run: docker compose docker-compose.base.yml -f docker-compose.staging.yml down -v
+        run: docker compose -f docker-compose.base.yml -f docker-compose.staging.yml down -v
 
   #This runs when you create and push a version tag like
   #    git tag v1.0.0
@@ -453,9 +461,13 @@ jobs:
           DB_USER: ${{ secrets.PROD_DB_USER }}
           DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
           LOG_LEVEL: warn
-          OTEL_ENABLED: "true"
-          OTEL_SERVICE_NAME: "myapp-dev"
-          OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+          OTEL_ENABLED: true
+          OTEL_SERVICE_NAME: ${{ needs.ci.outputs.image_myapp_prod }}
+          OTEL_EXPORTER_OTLP_ENDPOINT: api.uptrace.dev:4317
+          UPTRACE_TOKEN: WLfJDCI9dKwaoXgI-Z-jFg
+          UPTRACE_DSN: https://WLfJDCI9dKwaoXgI-Z-jFg@api.uptrace.dev?grpc=4317
+          OTEL_TRACES_SAMPLER: always_on
+          DISABLE_CUSTOM_MIDDLEWARE: false
         run: |
           docker pull ${{ needs.ci.outputs.image_myapp_staging }}
           docker tag ${{ needs.ci.outputs.image_myapp_staging }} ${{ needs.ci.outputs.image_myapp_prod }}

@@ -225,6 +225,7 @@ clean:
 	make clean-coverage
 
 # ---------- LOCAL DEV STACK WITH OBSERVABILITY ----------
+APP_ENV=dev
 DEV_DB_HOST ?= db
 DEV_DB_PORT ?= 5432
 DEV_DB_NAME ?= mydb
@@ -242,7 +243,7 @@ OTEL_TRACES_SAMPLER ?= always_on
 # Run full dev stack: db + myapp + mylearning + prometheus + grafana
 # Run full dev stack: db + myapp + mylearning + prometheus + grafana
 dev-up: docker-build
-	APP_ENV=dev \
+	APP_ENV=${APP_ENV} \
 	IMAGE_MYAPP=myapp:latest \
 	IMAGE_MYLEARNING=mylearning:latest \
 	DB_HOST=$(DEV_DB_HOST) \
@@ -262,7 +263,7 @@ dev-up: docker-build
 
 # Tear down dev stack
 dev-down:
-	APP_ENV=dev \
+	APP_ENV=${APP_ENV} \
 	IMAGE_MYAPP=myapp:latest \
 	IMAGE_MYLEARNING=mylearning:latest \
 	DB_HOST=$(DEV_DB_HOST) \

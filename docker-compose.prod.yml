@@ -4,20 +4,20 @@ services:
     container_name: myapp-prod
     # No local volume mounts in prod: image is immutable artifact
     environment:
-      APP_ENV: production
+      APP_ENV: prod
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      LOG_LEVEL: ${LOG_LEVEL}
-      OTEL_ENABLED: ${OTEL_ENABLED}
-      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME}
+      LOG_LEVEL: ${LOG_LEVEL:-warn}
+      OTEL_ENABLED: ${OTEL_ENABLED:-true}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-myappprod}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       UPTRACE_TOKEN: ${UPTRACE_TOKEN}
       UPTRACE_DSN: ${UPTRACE_DSN}
-      OTEL_TRACES_SAMPLER: ${OTEL_TRACES_SAMPLER}
-      DISABLE_CUSTOM_MIDDLEWARE: ${DISABLE_CUSTOM_MIDDLEWARE}
+      OTEL_TRACES_SAMPLER: ${OTEL_TRACES_SAMPLER:-always_on}
+      DISABLE_CUSTOM_MIDDLEWARE: ${DISABLE_CUSTOM_MIDDLEWARE:-false}
     restart: always
     # In prod you typically run behind a reverse proxy / LB
     # but if you want direct access on the host:

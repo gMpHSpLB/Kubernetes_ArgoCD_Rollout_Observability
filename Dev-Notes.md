@@ -259,3 +259,5 @@ Has CI/CD, Docker, etc.
 
         Simple example
                 If version 1.2.0 is published as an immutable release, then anyone who downloads it later can be confident they are getting the exact same tag and files that were originally published.
+13. To temporarily disable pre-commit hook.
+git commit --no-verify -m "...message" 

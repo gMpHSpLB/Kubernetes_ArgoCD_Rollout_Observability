@@ -105,6 +105,8 @@ def setup_logging() -> None:
     # reads APP_ENV to decide between development and production formatting
     env = os.getenv("APP_ENV", "dev").lower()
 
+    print(f"LOGGING: using env={env}")
+
     # sends logs to standard output
     handler = logging.StreamHandler(sys.stdout)
 
