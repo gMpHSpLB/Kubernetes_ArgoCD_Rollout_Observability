@@ -1,14 +1,14 @@
-# Because mylearning is not an HTTP service, you don’t 
-# expose /metrics here. 
+# Because mylearning is not an HTTP service, you don’t
+# expose /metrics here.
 # Instead, you can:
 #   - Export Prometheus counters for core functions.
-#   - If mylearning runs inside myapp, metrics will 
+#   - If mylearning runs inside myapp, metrics will
 #     show up in myapp’s /metrics.
-#   - Since both myapp and mylearning metrics use the 
-#     same default REGISTRY, you only need to ensure 
-#     that mylearning.metrics is imported before you 
+#   - Since both myapp and mylearning metrics use the
+#     same default REGISTRY, you only need to ensure
+#     that mylearning.metrics is imported before you
 #     scrape
-#   - If you run a separate service around mylearning later, 
+#   - If you run a separate service around mylearning later,
 #     you can reuse the same metrics.
 from prometheus_client import Counter, Histogram
 

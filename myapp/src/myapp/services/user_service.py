@@ -6,12 +6,7 @@
 import os
 from typing import List, Optional
 
-from sqlalchemy.orm import Session
-
-from myapp.metrics import DB_ERRORS_TOTAL
-from myapp.models import db_models
-from myapp.models.schemas import UserCreate, UserRead
-# You don’t have to reference FIB_CALLS directly; 
+# You don’t have to reference FIB_CALLS directly;
 # importing the module is enough to register metrics.
 # Install mylearning as a dependency of myapp (best)
 # In myapp/pyproject.toml, add a local path dependency on mylearning:
@@ -19,9 +14,14 @@ from myapp.models.schemas import UserCreate, UserRead
 # ... existing deps ...
 # mylearning = { path = "../mylearning", develop = true }
 #  - with develop = true means “install this dependency in editable (dev) mode.”
-#    Any code changes you make under ../mylearning/src are immediately visible 
+#    Any code changes you make under ../mylearning/src are immediately visible
 #    in the myapp virtualenv without reinstalling, because Python imports directly from that folder.
 from exercises.fibonacci import fibonacci
+from sqlalchemy.orm import Session
+
+from myapp.metrics import DB_ERRORS_TOTAL
+from myapp.models import db_models
+from myapp.models.schemas import UserCreate, UserRead
 
 # DI: db is injected from FastAPI via Depends(get_db).
 # settings is available if you need env‑specific behavior (e.g., feature flags,
@@ -33,9 +33,10 @@ APP_ENV = os.getenv("APP_ENV", "dev")
 def get_user(db: Session, user_id: int) -> Optional[UserRead]:
     try:
         user = db.get(db_models.User, user_id)
-        # Below code is to just make sure metrics 
+        # Below code is to just make sure metrics
         # from mylearning project are touched
         value = fibonacci(10)  # this will touch FIB_CALLS / FIB_DURATION
+        print(f"fibonacci: {value}")
         if not user:
             return None
         return UserRead.model_validate(user)
@@ -46,9 +47,10 @@ def get_user(db: Session, user_id: int) -> Optional[UserRead]:
 
 def list_users(db: Session, limit: int = 100) -> List[UserRead]:
     try:
-        # Below code is to just make sure metrics 
+        # Below code is to just make sure metrics
         # from mylearning project are touched
         value = fibonacci(10)  # this will touch FIB_CALLS / FIB_DURATION
+        print(f"fibonacci: {value}")
         users = db.query(db_models.User).limit(limit).all()
         return [UserRead.model_validate(u) for u in users]
     except Exception:

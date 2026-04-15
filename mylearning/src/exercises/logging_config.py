@@ -1,15 +1,15 @@
-# logging config module 
-# it uses the same style as myapp (JSON in prod, plain in dev).   
-# You don’t need per‑request correlation IDs here because 
-# mylearning is called by tests or by myapp; correlation 
-# is handled at the service boundary. 
-# Note: In your tests (or when using mylearning directly), 
+# logging config module
+# it uses the same style as myapp (JSON in prod, plain in dev).
+# You don’t need per‑request correlation IDs here because
+# mylearning is called by tests or by myapp; correlation
+# is handled at the service boundary.
+# Note: In your tests (or when using mylearning directly),
 #       call setup_logging() once at process start.
 import logging
 import os
 import sys
 
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger.jsonlogger import JsonFormatter  # type: ignore[attr-defined]
 
 
 def setup_logging() -> None:
@@ -27,7 +27,7 @@ def setup_logging() -> None:
             datefmt="%Y-%m-%d %H:%M:%S",
         )
     else:
-        formatter = jsonlogger.JsonFormatter(
+        formatter = JsonFormatter(
             fmt="%(asctime)s %(levelname)s %(name)s %(message)s",
             rename_fields={"asctime": "timestamp", "levelname": "level"},
             datefmt="%Y-%m-%dT%H:%M:%SZ",

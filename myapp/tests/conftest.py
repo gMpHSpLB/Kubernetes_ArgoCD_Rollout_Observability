@@ -22,19 +22,21 @@ from collections.abc import Generator
 # Here is a minimal test that uses the new db_session
 # fixture and your models:
 import pytest
+from _pytest.config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from myapp.models.db_models import Base
-
 # Note:
-# This guarantees every pytest worker process for myapp 
+# This guarantees every pytest worker process for myapp
 # initializes your logging config.
 from myapp.logging_config import setup_logging
+from myapp.models.db_models import Base
 
-def pytest_configure(config) -> None:
+
+def pytest_configure(config: Config) -> None:
     setup_logging()
+
 
 USE_TESTCONTAINERS = os.getenv("USE_TESTCONTAINERS", "false").lower() == "true"
 
