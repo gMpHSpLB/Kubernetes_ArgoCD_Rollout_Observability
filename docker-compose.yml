@@ -1,5 +1,18 @@
 # CI‑only docker-compose.yml (with build: and dev deps) for CI/test and
 # It does not participate in deploy stacks.
+# Monorepo root:
+# You’re using working_dir and volumes in two different ways in your setup:
+#   - In docker-compose.yml (CI‑only), they’re there to mount source code for tests.
+#   - In docker-compose.base.yml and *.dev.yml/*.staging.yml/*.prod.yml, they’re there just to set the runtime working directory, not to mount code from the host.
+# Right now:
+#   - docker-compose.base.yml defines working_dir: /app and no volumes for myapp/mylearning. That’s fine for “run prebuilt image” in dev/staging/prod; containers use the code baked into the image.
+#   - docker-compose.dev.yml etc. may add volumes for configs/logs/data, but not for the app source itself (by design, to keep “build once, run anywhere”).
+# The only place where we need the special volumes: .:/app + working_dir: /app/myapp / /app/mylearning trick is CI tests, because:
+#   - We want the monorepo layout visible (so ../mylearning path deps work).
+#   - We want fast feedback running tests directly against the repo.
+# So:
+#   - Keep working_dir in base/dev/staging/prod as “where the app runs inside the image”.
+#   - Only change docker-compose.yml’s working_dir and volumes to mount the whole repo for test containers.
 services:
   db:
     image: postgres:15
@@ -17,14 +30,15 @@ services:
 
   myapp:
     build:
-      context: ./myapp
+      context: .  # monorepo root context
+      dockerfile: myapp/Dockerfile
       args:
         INSTALL_DEV: "true" #build with dev dependencies from *.toml file
     image: myapp #explicilty define docker image name otherwise docker assigns random names.
     container_name: myapp-container
-    working_dir: /app
+    working_dir: /app/myapp
     volumes:
-      - ./myapp:/app    # bind mount repo root into /app
+      - .:/app    # mount monorepo root, bind mount repo root into /app
     depends_on:
       - db
     environment:
@@ -39,13 +53,14 @@ services:
 
   mylearning:
     build:
-      context: ./mylearning
+      context: .  # monorepo root context
+      dockerfile: mylearning/Dockerfile
       args:
         INSTALL_DEV: "true" #build with dev dependencies.
     image: mylearning #explicilty define image name
     container_name: mylearning-container
-    working_dir: /app
+    working_dir: /app/mylearning
     volumes:
-      - ./mylearning:/app   # carefully pick mount project root into /app
+      - .:/app   # mount monorepo root, carefully pick mount project root into /app
     environment:
       APP_ENV: ci

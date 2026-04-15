@@ -1,5 +1,10 @@
-.PHONY: lint format type security quality clean-coverage clean
+SHELL := /bin/bash
 
+.PHONY: lint format type security quality security-deps docker-security-deps docker-scan docker-scan-dev-image \
+        coverage test docker-build docker-db docker-test run check-api clean-coverage clean \
+        dev-up dev-down hit-api-multiple
+
+###############Code Quality ###############################
 lint:
 	( cd myapp && poetry run ruff check . ) & \
 	P1=$$!; \
@@ -121,13 +126,23 @@ coverage:
 # Runs both tests in parallel
 # Tracks each process
 # Fails if ANY fails
+# Note: remove -n auto to see logs from logging module
+# 	-vv is pytest’s “very verbose” mode.
+# 		-v shows each test name and its result.
+#		-vv shows even more detail: full node IDs 
+#		(module, class, function), useful when you 
+#		have many similarly named tests or use parametrization
 test:
 	@echo "Running tests in parallel..."
-	( cd myapp && USE_TESTCONTAINERS=true poetry run pytest -n auto \
+	( cd myapp && USE_TESTCONTAINERS=true poetry run pytest -vv -n auto \
+		--log-cli-level=INFO \
+  		--log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s" \
 		--cov=myapp --cov-report=term-missing \
 		--cov-report=xml:coverage-myapp.xml --cov-fail-under=20) & \
 	P1=$$!; \
-	( cd mylearning && poetry run pytest -n auto \
+	( cd mylearning && poetry run pytest -vv -n auto \
+		--log-cli-level=INFO \
+  		--log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s" \
 		--cov=exercises --cov-report=term-missing \
 		--cov-report=xml:coverage-mylearning.xml --cov-fail-under=20) & \
 	P2=$$!; \
@@ -184,11 +199,15 @@ test-docker:
 	docker compose up --build -d db  # only DB, run tests in one-off containers. only builds (and starts) the db service, not myapp or mylearning.
 	sleep 10
 	@echo "Running Docker tests in parallel..."
-	(docker compose run --rm myapp poetry run pytest \
+	(docker compose run --rm myapp poetry run pytest -vv \
+		--log-cli-level=INFO \
+  		--log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s" \
 		--cov=myapp --cov-report=term-missing \
 		--cov-report=xml:coverage-myapp.xml --cov-fail-under=20) & \
 	P1=$$!; \
-	(docker compose run --rm mylearning poetry run pytest -n auto \
+	(docker compose run --rm mylearning poetry run pytest -vv  \
+		--log-cli-level=INFO \
+  		--log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s" \
 		--cov=exercises --cov-report=term-missing \
 		--cov-report=xml:coverage-mylearning.xml --cov-fail-under=20) & \
 	P2=$$!; \

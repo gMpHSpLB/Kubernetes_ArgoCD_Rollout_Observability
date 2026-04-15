@@ -35,7 +35,14 @@ dev = [
   "bandit (>=1.9.4,<2.0.0)",
   "pre-commit (>=4.5.1,<5.0.0)",
   "pytest-cov (>=7.1.0,<8.0.0)",
-  "safety (>=3.0.0,<4.0.0)"
+  "safety (>=3.0.0,<4.0.0)",
+  "python-json-logger (>=2.0.7)", #JSON logging in all environments
+  "prometheus-client (>=0.20.0)", # Expose Prometheus metrics from myapp. Use Prometheus instrumentation (prometheus_client) to export HTTP metrics
+  "opentelemetry-api (>=1.25.0)",
+  "opentelemetry-sdk (>=1.25.0)",
+  "opentelemetry-exporter-otlp (>=1.25.0)",
+  "opentelemetry-instrumentation-fastapi (>=0.46b0)",
+  "opentelemetry-instrumentation-logging (>=0.46b0)"
 ]
 
 [tool.pytest.ini_options]

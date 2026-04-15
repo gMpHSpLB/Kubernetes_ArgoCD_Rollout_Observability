@@ -1,0 +1,1 @@
+You don’t need the full observability stack in mylearning (it’s a library + tests, not a running service), so you mainly add: library‑style structured logging, Prometheus counters for key functions, and (optionally) manual OTEL spans that will be picked up when mylearning runs inside myapp or any OTEL‑enabled service.

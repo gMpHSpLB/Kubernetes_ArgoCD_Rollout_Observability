@@ -1,0 +1,84 @@
+Running tests in parallel...
+( cd myapp && USE_TESTCONTAINERS=true poetry run pytest -vv -n auto \
+	--log-cli-level=INFO \
+  		--log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s" \
+	--cov=myapp --cov-report=term-missing \
+	--cov-report=xml:coverage-myapp.xml --cov-fail-under=20) & \
+P1=$!; \
+( cd mylearning && poetry run pytest -vv -n auto \
+	--log-cli-level=INFO \
+  		--log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s" \
+	--cov=exercises --cov-report=term-missing \
+	--cov-report=xml:coverage-mylearning.xml --cov-fail-under=20) & \
+P2=$!; \
+wait $P1 || exit 1; \
+wait $P2 || exit 1;
+============================= test session starts ==============================
+platform linux -- Python 3.11.7, pytest-9.0.2, pluggy-1.6.0 -- /home/hcrmapp/.cache/pypoetry/virtualenvs/mylearning-iKuZWKmZ-py3.11/bin/python
+cachedir: .pytest_cache
+rootdir: /home/hcrmapp/pythonworkspace/mylearning
+configfile: pyproject.toml
+plugins: xdist-3.8.0, cov-7.1.0, anyio-4.13.0
+created: 28/28 workers
+28 workers [2 items]
+
+scheduling tests via LoadScheduling
+
+tests/test_testexcercise.py::test_fibonacci_basic 
+tests/test_testexcercise.py::test_fibonacci_zero 
+[gw1] [ 50%] PASSED tests/test_testexcercise.py::test_fibonacci_zero 
+[gw0] [100%] PASSED tests/test_testexcercise.py::test_fibonacci_basic 
+
+=============================== warnings summary ===============================
+../../.cache/pypoetry/virtualenvs/mylearning-iKuZWKmZ-py3.11/lib/python3.11/site-packages/pythonjsonlogger/jsonlogger.py:11: 29 warnings
+  /home/hcrmapp/.cache/pypoetry/virtualenvs/mylearning-iKuZWKmZ-py3.11/lib/python3.11/site-packages/pythonjsonlogger/jsonlogger.py:11: DeprecationWarning: pythonjsonlogger.jsonlogger has been moved to pythonjsonlogger.json
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.11.7-final-0 ________________
+
+Name                              Stmts   Miss  Cover   Missing
+---------------------------------------------------------------
+src/exercises/__init__.py             0      0   100%
+src/exercises/fibonacci.py           15      2    87%   18-19
+src/exercises/logging_config.py      16      1    94%   30
+---------------------------------------------------------------
+TOTAL                                31      3    90%
+Coverage XML written to file coverage-mylearning.xml
+Required test coverage of 20% reached. Total coverage: 90.32%
+======================== 2 passed, 29 warnings in 2.86s ========================
+============================= test session starts ==============================
+platform linux -- Python 3.11.7, pytest-9.0.2, pluggy-1.6.0 -- /home/hcrmapp/.cache/pypoetry/virtualenvs/myapp-iL4RxfWA-py3.11/bin/python
+cachedir: .pytest_cache
+rootdir: /home/hcrmapp/pythonworkspace/myapp
+configfile: pyproject.toml
+plugins: langsmith-0.7.22, xdist-3.8.0, cov-7.1.0, anyio-4.13.0
+created: 28/28 workers
+28 workers [3 items]
+
+scheduling tests via LoadScheduling
+
+tests/test_db.py::test_create_and_list_users 
+tests/test_db.py::test_create_user 
+tests/test_db.py::test_db_is_isolated_between_tests 
+[gw0] [ 33%] PASSED tests/test_db.py::test_create_and_list_users 
+[gw1] [ 66%] PASSED tests/test_db.py::test_db_is_isolated_between_tests 
+[gw2] [100%] PASSED tests/test_db.py::test_create_user 
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.11.7-final-0 ________________
+
+Name                                 Stmts   Miss  Cover   Missing
+------------------------------------------------------------------
+src/myapp/core/config.py                12      0   100%
+src/myapp/core/db.py                     6      0   100%
+src/myapp/metrics.py                    22     13    41%   64-98, 107-111
+src/myapp/models/db_models.py            9      0   100%
+src/myapp/models/schemas.py              9      0   100%
+src/myapp/services/user_service.py      33     14    58%   23-30, 37-39, 51-53
+------------------------------------------------------------------
+TOTAL                                   91     27    70%
+Coverage XML written to file coverage-myapp.xml
+Required test coverage of 20% reached. Total coverage: 70.33%
+============================== 3 passed in 8.19s ===============================

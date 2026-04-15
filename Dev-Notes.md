@@ -261,3 +261,4 @@ Has CI/CD, Docker, etc.
                 If version 1.2.0 is published as an immutable release, then anyone who downloads it later can be confident they are getting the exact same tag and files that were originally published.
 13. To temporarily disable pre-commit hook.
 git commit --no-verify -m "...message" 
+14. “structured logging via python-json-logger is idiomatic” means: if you want JSON/structured logs in a Python app that already uses the built‑in logging module, using python-json-logger.JsonFormatter (like you’re doing) is a standard, clean, and commonly accepted approach rather than some unusual hack.      

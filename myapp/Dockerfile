@@ -17,11 +17,17 @@ ARG INSTALL_DEV=false
 # - always install main deps
 # - optionally install dev deps if INSTALL_DEV=true
 # Uses poetry install --only main for runtime; dev tools will be in your CI/WSL, not in the container
-COPY pyproject.toml poetry.lock ./
+# now /app/pyproject.toml, /app/poetry.lock
+COPY myapp/pyproject.toml myapp/poetry.lock ./
+
+# Copy mylearning source so Poetry can resolve path dependency ../mylearning
+# # Copy mylearning to /app/../mylearning so ../mylearning exists
+COPY mylearning /mylearning
+
 RUN pip install --no-cache-dir poetry && \
-    poetry install --only main --no-interaction --no-ansi && \
+    poetry install --only main --no-interaction --no-ansi -vvv && \
     if [ "$INSTALL_DEV" = "true" ]; then \
-      poetry install --with dev --no-interaction --no-ansi; \
+      poetry install --with dev --no-interaction --no-ansi -vvv; \
     fi
 
 # Copy source code only
@@ -53,9 +59,9 @@ RUN pip install --no-cache-dir poetry && \
 #       Runtime image: just the app and its dependencies.
 #       CI: uses the repo (including tests) to build and test.
 
-COPY src ./src
+COPY myapp/src ./src
 # Optional: if you want tests inside container, you can copy tests too
-COPY tests ./tests
+COPY myapp/tests ./tests
 
 # Ensure src layout is importable
 # PYTHONPATH=/app/src makes import myapp work with your src layout.

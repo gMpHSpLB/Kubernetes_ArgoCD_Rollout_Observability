@@ -28,6 +28,14 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from myapp.models.db_models import Base
 
+# Note:
+# This guarantees every pytest worker process for myapp 
+# initializes your logging config.
+from myapp.logging_config import setup_logging
+
+def pytest_configure(config) -> None:
+    setup_logging()
+
 USE_TESTCONTAINERS = os.getenv("USE_TESTCONTAINERS", "false").lower() == "true"
 
 if USE_TESTCONTAINERS:

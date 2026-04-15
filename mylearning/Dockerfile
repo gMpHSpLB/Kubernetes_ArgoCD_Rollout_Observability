@@ -16,7 +16,7 @@ ARG INSTALL_DEV=false
 # - always install main deps
 # - optionally install dev deps if INSTALL_DEV=true
 # Uses poetry install --only main for runtime; dev tools will be in your CI/WSL, not in the container
-COPY pyproject.toml poetry.lock ./
+COPY mylearning/pyproject.toml mylearning/poetry.lock ./
 
 # Copy source code only
 # COPY src instead of COPY . → smaller image, 
@@ -47,9 +47,9 @@ COPY pyproject.toml poetry.lock ./
 #       Runtime image: just the app and its dependencies.
 #       CI: uses the repo (including tests) to build and test.
 
-COPY src ./src
+COPY mylearning/src ./src
 # Optional: if you want tests inside container, you can copy tests too
-COPY tests ./tests
+COPY mylearning/tests ./tests
 
 RUN pip install --no-cache-dir poetry && \
     poetry install --only main --no-interaction --no-ansi && \

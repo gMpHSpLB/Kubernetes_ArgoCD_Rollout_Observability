@@ -1628,6 +1628,20 @@ files = [
 ]
 
 [[package]]
+name = "mylearning"
+version = "0.1.0"
+description = ""
+optional = false
+python-versions = ">=3.11"
+groups = ["main"]
+files = []
+develop = true
+
+[package.source]
+type = "directory"
+url = "../mylearning"
+
+[[package]]
 name = "mypy"
 version = "1.20.0"
 description = "Optional static typing for Python"
@@ -3899,5 +3913,5 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 
 [metadata]
 lock-version = "2.1"
-python-versions = ">=3.11,<4.0"
-content-hash = "629a115cab21523a17fb25027e7b5f545f365d1c532a9a8be9586cae326ae27d"
+python-versions = "^3.11"
+content-hash = "a8f09fb6e7b718b4a101400a16bbf693f20cfb205ab39dcd54e5f86402eebfbf"

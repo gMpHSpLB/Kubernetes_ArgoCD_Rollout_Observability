@@ -273,8 +273,8 @@ jobs:
         #   It does not read docker-compose.yml file.
         #Reused those outputs in later jobs with needs.ci.outputs...
         run: |
-          docker build -t ${{ needs.ci.outputs.image_myapp_dev }} ./myapp
-          docker build -t ${{ needs.ci.outputs.image_mylearning_dev }} ./mylearning
+          docker build -t ${{ needs.ci.outputs.image_myapp_dev }} -f myapp/Dockerfile .
+          docker build -t ${{ needs.ci.outputs.image_mylearning_dev }} -f mylearning/Dockerfile .
           docker push ${{ needs.ci.outputs.image_myapp_dev }}
           docker push ${{ needs.ci.outputs.image_mylearning_dev }}
 
