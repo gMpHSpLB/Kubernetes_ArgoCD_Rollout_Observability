@@ -1,18 +1,9 @@
 # myapp/Dockerfile
-# Multi‑stage Dockerfile for myapp
-# Idea:
-#   - Builder stage: install Poetry, install dependencies with dev or non‑dev based on ARG, compile everything.
-#                    Build tooling (build‑essential, Poetry) is only in the builder image, not in final runtime.
-#   - Runtime stage: copy only what’s needed (site‑packages + src), create non‑root user, run uvicorn directly.
-#                    Final image is smaller, faster to pull, and has a reduced attack surface.
-
-# -------- Stage 1: builder --------
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    POETRY_VIRTUALENVS_CREATE=false \
-    POETRY_NO_INTERACTION=1
+    POETRY_VIRTUALENVS_CREATE=false
 
 WORKDIR /app
 
@@ -21,25 +12,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 # Optional: control whether dev dependencies are installed
-# Dev deps are **not** installed for dev/stage/prod images.
-# Keep this arg for flexibility, but default is false.
 ARG INSTALL_DEV=false
-
-# Dependencies first → better cache
 # # Install Python deps via Poetry
 # - always install main deps
 # - optionally install dev deps if INSTALL_DEV=true
 # Uses poetry install --only main for runtime; dev tools will be in your CI/WSL, not in the container
 # now /app/pyproject.toml, /app/poetry.lock
-
 COPY myapp/pyproject.toml myapp/poetry.lock ./
 
-# Path dependency ../mylearning
 # Copy mylearning source so Poetry can resolve path dependency ../mylearning
 # # Copy mylearning to /app/../mylearning so ../mylearning exists
 COPY mylearning /mylearning
 
-# Keep Poetry (or its output) only in build layers, not in production layers where possible.
 RUN pip install --no-cache-dir poetry && \
     poetry install --only main --no-interaction --no-ansi -vvv && \
     if [ "$INSTALL_DEV" = "true" ]; then \
@@ -75,34 +59,14 @@ RUN pip install --no-cache-dir poetry && \
 #       Runtime image: just the app and its dependencies.
 #       CI: uses the repo (including tests) to build and test.
 
-# App code last
 COPY myapp/src ./src
-
-# the multi‑stage Dockerfile will still only leave runtime deps in the final layer.
-# -------- Stage 2: runtime --------
-FROM python:3.11-slim AS runtime
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-WORKDIR /app
-
-# Non-root user
-RUN useradd -r -u 10001 appuser && \
-    mkdir -p /app && chown -R appuser:appuser /app
-
-# Copy installed deps + app
-COPY --from=builder /usr/local /usr/local
-COPY --from=builder /app/src ./src
+# Optional: if you want tests inside container, you can copy tests too
+COPY myapp/tests ./tests
 
 # Ensure src layout is importable
 # PYTHONPATH=/app/src makes import myapp work with your src layout.
 ENV PYTHONPATH=/app/src
 
-# Container runs as non‑root appuser in the runtime stage/final image.
-USER appuser
-
-EXPOSE 8000
 # Run FastAPI with Uvicorn (good for dev/staging, later switch to Gunicorn for prod)
 #  just be aware CMD is for runtime, not for tests
-CMD ["python", "-m", "uvicorn", "myapp.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+CMD ["poetry", "run", "uvicorn", "myapp.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]

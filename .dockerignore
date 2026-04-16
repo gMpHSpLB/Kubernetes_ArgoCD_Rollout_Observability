@@ -1,0 +1,85 @@
+# Exclude .git, venvs, caches, coverage, IDE files: they bloat build context and are never needed inside the image.
+# Exclude .env and similar: avoids accidentally baking secrets into images.
+# Excluding docs/ and *.md is optional; for runtime images it’s usually safe to drop them to keep context small.
+# We do not ignore myapp/src, myapp/pyproject.toml, myapp/poetry.lock, mylearning/src, etc., because the Dockerfiles need them.
+
+# --- VCS & CI ---
+.git
+.gitignore
+.gitattributes
+.github
+.gitlab-ci.yml
+*.code-workspace
+
+# --- Python bytecode & caches ---
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.tox/
+.nox/
+.mypy_cache/
+.cache/
+.coverage
+coverage*.xml
+htmlcov/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# --- Editor / IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- Logs & runtime junk ---
+*.log
+logs/
+*.pid
+
+# --- Test artifacts ---
+**/tests/__pycache__/
+# (optional) ignore tests entirely for runtime images; they are not needed at runtime
+# myapp/tests/
+# mylearning/tests/
+
+# --- Local environment files & secrets ---
+.env
+*.env
+.env.*
+*.pem
+*.key
+
+# --- Docs & repo meta (optional for runtime images) ---
+docs/
+*.md
+LICENSE
+
+# --- Node / frontend (if present now or in future) ---
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+
+# --- Docker / Compose own files (we don't need to send them as context) ---
+docker-compose.yml
+docker-compose.*.yml
+.dockerignore
+Dockerfile
+Dockerfile.*
+Docker/

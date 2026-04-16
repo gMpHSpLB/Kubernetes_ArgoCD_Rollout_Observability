@@ -72,15 +72,33 @@ docker-scan:
 	#The leading @ is a Makefile feature: it tells make not to echo the command itself before running it.
 	#	- Without @, make would print the whole line (docker scout cves ...) and then the command’s output.
 	#	- With @, you only see the output of docker scout, which keeps logs cleaner.
-	@echo "Scanning myapp image for high/critical CVEs..."
+	@echo "Scanning myapp image for high/critical CVEs (multi-stage)..."
 	#Docker Scout vulnerability scan command.
 	#	- docker scout cves analyzes the myapp:latest image and reports known CVEs affecting packages inside it.
 	#	- --only-severity high,critical filters the findings so you only see vulnerabilities with severity high or critical, hiding medium/low ones.
 	#Rightnow we donot want CI to fail on findings, we have wraped each docker scout call with || true
-	@docker scout cves myapp:latest --only-severity high,critical || true
+	# Since your images are multi‑stage, you can explicitly ask Scout to show multi‑stage package info
+	#   --multi-stage is recommended by Scout docs to get a full view of packages across stages in multi‑stage builds.
+	@docker scout cves myapp:latest \
+		--multi-stage \
+		--only-severity high,critical || true
 
-	@echo "Scanning mylearning image for high/critical CVEs..."
-	@docker scout cves mylearning:latest --only-severity high,critical || true
+	@echo "Scanning mylearning image for high/critical CVEs (multi-stage)..."
+	@docker scout cves mylearning:latest \
+		--multi-stage \
+		--only-severity high,critical || true
+
+	# Optional: sometimes it’s useful to see only base‑image 
+	# issues (to decide when to bump python:3.11-slim)
+	@echo "Base image-only issues for myapp..."
+	@docker scout cves myapp:latest \
+        --only-base \
+        --only-severity high,critical || true
+
+	@echo "Base image-only issues for mylearning..."
+	@docker scout cves mylearning:latest \
+        --only-base \
+        --only-severity high,critical || true
 
 docker-scan-dev-image:
 	@echo "Installing Docker Scout CLI..."
@@ -89,15 +107,19 @@ docker-scan-dev-image:
 	#The leading @ is a Makefile feature: it tells make not to echo the command itself before running it.
 	#	- Without @, make would print the whole line (docker scout cves ...) and then the command’s output.
 	#	- With @, you only see the output of docker scout, which keeps logs cleaner.
-	@echo "Scanning $(IMAGE) image for high/critical CVEs..."
+	@echo "Scanning $(IMAGE) image for high/critical CVEs (multi-stage)..."
 	#Docker Scout vulnerability scan command.
 	#	- docker scout cves analyzes the $(IMAGE) image and reports known CVEs affecting packages inside it.
 	#	- --only-severity high,critical filters the findings so you only see vulnerabilities with severity high or critical, hiding medium/low ones.
 	#Rightnow we donot want CI to fail on findings, we have wraped each docker scout call with || true
-	docker scout cves $(IMAGE) --only-severity high,critical || true
+	docker scout cves $(IMAGE) \
+		--multi-stage \
+		--only-severity high,critical || true
 
-	@echo "Scanning $(IMAGE) image for high/critical CVEs..."
-	docker scout cves $(IMAGE) --only-severity high,critical || true
+	@echo "Scanning $(IMAGE) image for high/critical CVEs (multi-stage)..."
+	docker scout cves $(IMAGE) \
+		--multi-stage \
+		--only-severity high,critical || true
 
 quality:
 	@echo "Running code quality checks..."
@@ -155,8 +177,9 @@ test:
 #Docker builds images with tags:
 #	myapp:latest
 #	mylearning:latest
+#  dev deps in these local dev images, pass INSTALL_DEV=true
 docker-build:
-	docker compose build #build image with dev dependency.
+	docker compose build --build-arg INSTALL_DEV=true #build image with dev dependency.
 
 # ---------- DOCKER DB ----------
 docker-db:

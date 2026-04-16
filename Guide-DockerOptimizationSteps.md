@@ -156,3 +156,50 @@ Smaller runtime images.
 Fewer security findings from scanners.
 
 A cleaner separation between build-time and runtime concerns.
+------------------------------------
+Why this is an improvement (summary)
+Multi‑stage builds
+
+Build stage has tools (Poetry, compilers); runtime stage has only Python, dependencies, and app.
+
+Smaller images → faster pulls, fewer CVEs in OS/build tool chain.
+
+Non‑root containers
+
+User appuser / mylearninguser in runtime stages means if someone breaks out of your app, they don’t immediately get root in the container.
+
+Better caching
+
+Copying pyproject/lock first and installing deps before copying src means Docker cache hits most of the time when you only change code.
+
+CI build times go down as dependencies aren’t reinstalled every push.
+
+CI/CD stays familiar
+
+You keep your current Makefile + compose flows, but images are more production‑ready.
+
+Scanning continues on both CI images and dev/staging/prod images.
+------------------------------------
+
+ Quick mental model (for your future self)
+CI tests
+
+Use Poetry venvs on the host (make quality, make test).
+
+Optionally use container tests via make test-docker.
+
+Images used here may be built from docker-compose.yml (CI‑only) but still without dev deps in final layers.
+
+Dev / staging / prod images
+
+Built from the same Dockerfiles, with default INSTALL_DEV=false.
+
+Dev image is tagged :dev and pushed, then re‑tagged as :staging and :vX.Y.Z for prod.
+
+Same image promoted across environments.
+
+Security
+
+Safety scans dependencies (pyproject/lock).
+
+Docker Scout scans the hardened multi‑stage images with --multi-stage and high/critical filter.

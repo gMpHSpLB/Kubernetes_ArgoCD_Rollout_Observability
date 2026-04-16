@@ -1,10 +1,8 @@
-# -------- Stage 1: builder --------
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    POETRY_VIRTUALENVS_CREATE=false \
-    POETRY_NO_INTERACTION=1
+    POETRY_VIRTUALENVS_CREATE=false
 
 WORKDIR /app
 
@@ -19,12 +17,6 @@ ARG INSTALL_DEV=false
 # - optionally install dev deps if INSTALL_DEV=true
 # Uses poetry install --only main for runtime; dev tools will be in your CI/WSL, not in the container
 COPY mylearning/pyproject.toml mylearning/poetry.lock ./
-
-RUN pip install --no-cache-dir poetry && \
-    poetry install --only main --no-interaction --no-ansi && \
-    if [ "$INSTALL_DEV" = "true" ]; then \
-      poetry install --with dev --no-interaction --no-ansi; \
-    fi
 
 # Copy source code only
 # COPY src instead of COPY . → smaller image, 
@@ -59,28 +51,14 @@ COPY mylearning/src ./src
 # Optional: if you want tests inside container, you can copy tests too
 COPY mylearning/tests ./tests
 
+RUN pip install --no-cache-dir poetry && \
+    poetry install --only main --no-interaction --no-ansi && \
+    if [ "$INSTALL_DEV" = "true" ]; then \
+      poetry install --with dev --no-interaction --no-ansi; \
+    fi
+
 # Ensure src layout is importable
 # PYTHONPATH=/app/src makes import myapp work with your src layout.
 ENV PYTHONPATH=/app/src
 
-# -------- Stage 2: runtime (test runner image) --------
-FROM python:3.11-slim AS runtime
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-WORKDIR /app
-
-RUN useradd -r -u 10002 mylearninguser && \
-    mkdir -p /app && chown -R mylearninguser:mylearninguser /app
-
-# no dev deps in the final image by default
-COPY --from=builder /usr/local /usr/local
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/tests ./tests
-
-ENV PYTHONPATH=/app/src
-
-USER mylearninguser
-
-CMD ["python", "-m", "pytest"]
+CMD ["poetry", "run", "pytest"]
