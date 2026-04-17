@@ -222,13 +222,13 @@ test-docker:
 	docker compose up --build -d db  # only DB, run tests in one-off containers. only builds (and starts) the db service, not myapp or mylearning.
 	sleep 10
 	@echo "Running Docker tests in parallel..."
-	(docker compose run --rm myapp poetry run pytest -vv \
+	(docker compose run --rm myapp pytest -vv \
 		--log-cli-level=INFO \
   		--log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s" \
 		--cov=myapp --cov-report=term-missing \
 		--cov-report=xml:coverage-myapp.xml --cov-fail-under=20) & \
 	P1=$$!; \
-	(docker compose run --rm mylearning poetry run pytest -vv  \
+	(docker compose run --rm mylearning pytest -vv  \
 		--log-cli-level=INFO \
   		--log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s" \
 		--cov=exercises --cov-report=term-missing \
@@ -260,11 +260,12 @@ check-api:
 
 # ---------- CLEAN COVERAGE ----------
 clean-coverage:
-	rm -f myapp/.coverage myapp/coverage*.xml
-	rm -f mylearning/.coverage mylearning/coverage*.xml
+	rm -f myapp/.coverage myapp/coverage*.xml /tmp/coverage*.xml
+	rm -f mylearning/.coverage mylearning/coverage*.xml /tmp/coverage*.xml
+
 # ---------- CLEAN ----------
 clean:
-	docker compose down -v --remove-orphans
+	docker compose down -v #--remove-orphans
 	docker system prune -f #remove unused images and layers
 	@$(MAKE) clean-coverage
 

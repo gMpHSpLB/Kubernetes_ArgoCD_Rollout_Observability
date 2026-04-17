@@ -3,7 +3,7 @@ services:
   myapp:
     container_name: myapp-dev
     volumes:
-      - ./myapp:/app  # mount project root into /app
+      #- ./myapp:/app  # mount project root into /app
       - ./mylearning:/mylearning
     environment: #Python uses DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, APP_ENV. Here, DB_* are injected by the staging job, using default value
       APP_ENV: dev
@@ -22,8 +22,8 @@ services:
       DISABLE_CUSTOM_MIDDLEWARE: ${DISABLE_CUSTOM_MIDDLEWARE:-false}
   mylearning:
     container_name: mylearning-dev
-    volumes:
-      - ./mylearning:/app # bind mount repo root into /app
+    volumes: []
+      #- ./mylearning:/app # bind mount repo root into /app
     environment:
       APP_ENV: dev
 #Code before start-deployable-prod‑like-stack-with-Docker-Compose

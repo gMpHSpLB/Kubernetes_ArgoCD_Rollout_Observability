@@ -38,8 +38,9 @@ services:
     container_name: myapp-container
     working_dir: /app  # match Dockerfile WORKDIR
     volumes:
-      - ./myapp:/app    # mount monorepo root, bind mount repo root into /app
-      - ./mylearning:/mylearning
+      # Note: not running tests directly against the live host tree (but instead against the code baked into the image), you can remove the bind mount for /app
+      #- ./myapp:/app    # mount monorepo root, bind mount repo root into /app
+      - ./mylearning:/mylearning:ro #needed for path deps
     depends_on:
       - db
     environment:
@@ -49,6 +50,7 @@ services:
      DB_NAME: mydb
      DB_USER: myuser
      DB_PASSWORD: mypassword
+     COVERAGE_FILE: /tmp/.coverage-myapp
     ports:
       - "8000:8000"
 
@@ -60,8 +62,10 @@ services:
         INSTALL_DEV: "true" #build with dev dependencies.
     image: mylearning #explicilty define image name
     container_name: mylearning-container
-    working_dir: /app/mylearning
-    volumes:
-      - .:/app   # mount monorepo root, carefully pick mount project root into /app
+    working_dir: /app # Match with Dockerfile
+    volumes: []
+      # Note: not running tests directly against the live host tree (but instead against the code baked into the image), you can remove the bind mount for /app
+      #- .:/app   # mount monorepo root, carefully pick mount project root into /app
     environment:
       APP_ENV: ci
+      COVERAGE_FILE: /tmp/.coverage-mylearning

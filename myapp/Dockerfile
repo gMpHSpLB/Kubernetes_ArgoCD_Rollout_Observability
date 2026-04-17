@@ -77,13 +77,16 @@ RUN pip install --no-cache-dir poetry && \
 
 # App code last
 COPY myapp/src ./src
+COPY myapp/tests ./tests
 
 # the multi‑stage Dockerfile will still only leave runtime deps in the final layer.
 # -------- Stage 2: runtime --------
 FROM python:3.11-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_NO_INTERACTION=1
 
 WORKDIR /app
 
@@ -94,6 +97,7 @@ RUN useradd -r -u 10001 appuser && \
 # Copy installed deps + app
 COPY --from=builder /usr/local /usr/local
 COPY --from=builder /app/src ./src
+COPY --from=builder /app/tests ./tests
 
 # Ensure src layout is importable
 # PYTHONPATH=/app/src makes import myapp work with your src layout.

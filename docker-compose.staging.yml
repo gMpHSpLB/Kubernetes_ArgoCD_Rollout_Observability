@@ -3,7 +3,7 @@ services:
   myapp:
     container_name: myapp-staging
     volumes:
-      - ./myapp:/app # mount project root into /app
+      #- ./myapp:/app # mount project root into /app
       - ./mylearning:/mylearning
     environment:
       APP_ENV: staging
@@ -22,8 +22,8 @@ services:
       DISABLE_CUSTOM_MIDDLEWARE: ${DISABLE_CUSTOM_MIDDLEWARE:-false}
   mylearning:
     container_name: mylearning-staging
-    volumes:
-      - ./mylearning:/app
+    volumes: []
+      #- ./mylearning:/app
     environment:
       APP_ENV: staging
 
