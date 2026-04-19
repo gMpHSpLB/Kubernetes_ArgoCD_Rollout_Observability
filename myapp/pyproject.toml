@@ -60,8 +60,10 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 #Register the custom maker (db), sothat pytest can recognize the custome marker
+#add a lightweight smoke marker so you can run only health + a small DB test in CI
 markers = [
-    "db: marks tests that require database"
+    "db: marks tests that require database",
+    "smoke: Fast smoke tests (health, basic DB connectivity, etc.).",
 ]
 
 

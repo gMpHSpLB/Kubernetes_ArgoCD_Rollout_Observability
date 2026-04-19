@@ -1,0 +1,6 @@
+It will contain different projects related source code.
+apps/
+    myapp/ (FastAPI backend)
+    mylearning/ (Python lib)
+    ai-service/ (future ML/AI API)
+    web-frontend/ (future web UI)

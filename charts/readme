@@ -1,0 +1,7 @@
+One Helm chart per logical service, but all in one monorepo; future projects add their chart plus CI wiring.
+
+charts/
+    myapp/
+    mylearning/
+    ai-service/
+    web-frontend/

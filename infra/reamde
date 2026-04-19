@@ -1,0 +1,4 @@
+You can later plug a GitOps tool (Argo CD, Flux) on top of environments/ without changing the apps.
+infra/
+    k8s/ (cluster‑level manifests: ingress controllers, Prometheus/Grafana, logging, Argo Rollouts)
+    helmfile/ or GitOps config (optional)

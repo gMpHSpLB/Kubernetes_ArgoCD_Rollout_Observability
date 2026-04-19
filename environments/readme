@@ -1,0 +1,11 @@
+er‑environment config (values files, secrets, ingress domains) lives in environments/, not scattered.
+├── environments/
+│   ├── dev/
+│   │   ├── values-myapp.yaml
+│   │   ├── values-mylearning.yaml
+│   ├── staging/
+│   │   ├── values-myapp.yaml
+│   │   ├── values-mylearning.yaml
+│   └── prod/
+│       ├── values-myapp.yaml
+│       ├── values-mylearning.yaml

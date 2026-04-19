@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: lint format type security quality security-deps docker-security-deps docker-scan docker-scan-dev-image \
-        coverage test docker-build docker-db docker-test run check-api clean-coverage clean \
+        coverage smoke-test test docker-build docker-db docker-test run check-api clean-coverage clean \
         dev-up dev-down hit-api-multiple
 
 ###############Code Quality ###############################
@@ -143,7 +143,18 @@ coverage:
 		--cov-report=xml:../coverage-combined.xml \
 		--cov-fail-under=20
 
-# ---------- LOCAL TESTS ----------
+# ---------- LOCAL/CI TESTS ----------
+# ---------- SMOKE TESTS ----------
+# Fast gate: health endpoints + minimal DB wiring.
+smoke-test:
+	@echo "Running smoke tests ..."
+	( cd myapp && USE_TESTCONTAINERS=true poetry run pytest -m smoke \
+		--log-cli-level=INFO \
+  		--log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s") && \
+	( cd mylearning && poetry run pytest -m smoke \
+		--log-cli-level=INFO \
+  		--log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
+
 #Use wait -n trick, to detect failure correctly
 # Runs both tests in parallel
 # Tracks each process

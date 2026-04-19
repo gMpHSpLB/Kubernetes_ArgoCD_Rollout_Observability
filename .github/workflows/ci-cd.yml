@@ -102,6 +102,9 @@ jobs:
         with:
           api-key: ${{ secrets.SAFETY_API_KEY }}
 
+      - name: Smoke Tests
+        run: make smoke-test
+
       - name: Tests (local style)
         run: make test
 

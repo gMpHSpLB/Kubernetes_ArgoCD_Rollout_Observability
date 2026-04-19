@@ -47,6 +47,9 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+markers = [
+    "smoke: Fast smoke tests (health,basic wiring).",
+]
 
 ##Code Quality
 [tool.ruff]

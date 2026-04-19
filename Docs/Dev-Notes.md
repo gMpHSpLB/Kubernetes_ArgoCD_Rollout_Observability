@@ -261,4 +261,24 @@ Has CI/CD, Docker, etc.
                 If version 1.2.0 is published as an immutable release, then anyone who downloads it later can be confident they are getting the exact same tag and files that were originally published.
 13. To temporarily disable pre-commit hook.
 git commit --no-verify -m "...message" 
-14. “structured logging via python-json-logger is idiomatic” means: if you want JSON/structured logs in a Python app that already uses the built‑in logging module, using python-json-logger.JsonFormatter (like you’re doing) is a standard, clean, and commonly accepted approach rather than some unusual hack.      
+14. “structured logging via python-json-logger is idiomatic” means: if you want JSON/structured logs in a Python app that already uses the built‑in logging module, using python-json-logger.JsonFormatter (like you’re doing) is a standard, clean, and commonly accepted approach rather than some unusual hack.  
+15. Once Minikube and kubectl are installed, start the cluster with:
+
+bash
+        minikube start
+
+If you want to use a specific driver, you can choose one supported by your environment, such as Docker or VirtualBox. Minikube supports multiple local drivers and virtualization setups depending on your system.
+
+Check cluster status
+After the cluster starts, confirm it is running:
+
+bash
+        minikube status
+        kubectl get nodes    
+
+Useful Minikube commands
+These are the first commands you’ll use most often:
+        minikube start to create or resume the cluster.
+        minikube stop to pause it.
+        minikube delete to remove the cluster entirely.
+        minikube status to check whether it is running

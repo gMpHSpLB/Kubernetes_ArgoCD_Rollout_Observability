@@ -47,7 +47,9 @@ def test_db_is_isolated_between_tests(db_session: Session) -> None:
 # UserCreate and create_user are imported from your new models and services
 # modules.
 # pytest.mark.db is define in pyproject.toml under pytest ini config.
-@pytest.mark.db
+# mark one DB test as smoke as well, so your smoke suite checks the DB end‑to‑end without running the full DB test set.
+@pytest.mark.db 
+@pytest.mark.smoke
 def test_create_user(db_session: Session) -> None:
     user = UserCreate(name="test", email="[email protected]")
     result = create_user(db_session, user)
