@@ -59,7 +59,13 @@ def engine() -> Generator[Engine, None, None]:
             test_engine = create_engine(url)
             yield test_engine
     else:
-        url = "postgresql://myuser:mypassword@db:5432/mydb"
+        # point tests to Minikube DB or a compose DB
+        host = os.getenv("DB_HOST", "db")
+        port = int(os.getenv("DB_PORT", "5432"))
+        name = os.getenv("DB_NAME", "mydb")
+        user = os.getenv("DB_USER", "myuser")
+        password = os.getenv("DB_PASSWORD", "mypassword")
+        url = f"postgresql://{user}:{password}@{host}:{port}/{name}"
         test_engine = create_engine(url)
         yield test_engine
 

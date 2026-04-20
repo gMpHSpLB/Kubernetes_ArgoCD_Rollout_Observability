@@ -17,7 +17,7 @@ config:
 
 secret:
   name: myapp-secret
-  DB_HOST: db
+  DB_HOST: mydb-postgres # Postgres chart creates a Service named mydb-postgres on port 5432
   DB_PORT: "5432"
   DB_NAME: mydb
   DB_USER: myuser

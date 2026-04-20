@@ -73,7 +73,7 @@ config:
 # should come from a Kubernetes Secret, not from plain text in the chart
 secret:
   name: myapp-secret
-  DB_HOST: db
+  DB_HOST: mydb-postgres # Postgres chart creates a Service named mydb-postgres on port 5432
   DB_PORT: "5432"
   DB_NAME: mydb
   DB_USER: myuser

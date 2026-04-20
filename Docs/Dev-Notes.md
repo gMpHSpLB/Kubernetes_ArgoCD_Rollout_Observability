@@ -286,7 +286,11 @@ These are the first commands you’ll use most often:
 To know the pods and services:
 kubectl get pods
 kubectl get svc
+kubectl describe svc mydb-postgres
 
 Port-forward for service like: myapp-dev-myapp
  
 kubectl port-forward svc/myapp-dev-myapp 8000:8000
+
+Check logs:
+kubectl logs deploy/mydb-postgres

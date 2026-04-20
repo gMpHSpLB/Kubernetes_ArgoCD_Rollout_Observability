@@ -2,8 +2,11 @@ SHELL := /bin/bash
 
 .PHONY: lint format type security quality security-deps docker-security-deps docker-scan docker-scan-dev-image \
         coverage smoke-test test docker-build docker-db docker-test run check-api clean-coverage clean \
-        dev-up dev-down hit-api-multiple deploy-minikube deploy-minikube-ci create-minikube-secrets \
+        dev-up dev-down hit-api-multiple \
+		deploy-minikube deploy-minikube-ci create-minikube-secrets \
 		ensure-minikube recreate-minikube deploy-minikube-local-clean \
+		test-minikube test-minikube-all check-minikube-api k8s-test \
+		deploy-minikube-db test-minikube-db k8s-test-db \
 
 ###############Code Quality ###############################
 lint:
@@ -406,6 +409,127 @@ deploy-minikube-local: ensure-minikube
 # Add a “clean” deploy for when the cluster is flaky
 # Sometimes Minikube profiles get into a weird state and only delete+start fixes them. To encode that pattern
 deploy-minikube-local-clean: recreate-minikube deploy-minikube-local
+
+# 1) Run pytest against Minikube deployment
+# Assuming:
+# 	- deploy-minikube-local has already deployed myapp-mklatest.
+# 	- Your charts/myapp exposes the service as ClusterIP named myapp-mklatest on port 8000 (the typical Helm naming).
+# Add a new target that:
+# 	- Port‑forwards svc/myapp-mklatest to localhost:8000.
+# 	- Runs pytest in your local env (just like smoke-test / test).
+# 	- Cleans up the port‑forward.
+#USE_TESTCONTAINERS=true
+test-minikube: deploy-minikube-local
+	@echo "Starting port-forward from Minikube service to localhost:8000..."
+	@kubectl port-forward svc/myapp-mklatest-myapp 8000:8000 >/tmp/kube-pf-myapp.log 2>&1 & \
+	PF_PID=$$!; \
+	sleep 5; \
+	echo "Running smoke tests against Minikube app..."; \
+	( cd myapp && APP_ENV=dev USE_TESTCONTAINERS=true poetry run pytest -m smoke \
+	    --log-cli-level=INFO \
+	    --log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s" ) ; \
+	echo "Stopping port-forward..."; \
+	kill $$PF_PID || true
+
+# USE_TESTCONTAINERS=true
+test-minikube-all: deploy-minikube-local
+	@echo "Starting port-forward from Minikube service to localhost:8000..."
+	@kubectl port-forward svc/myapp-mklatest-myapp 8000:8000 >/tmp/kube-pf-myapp.log 2>&1 & \
+	PF_PID=$$!; \
+	sleep 5; \
+	echo "Running All tests against Minikube app..."; \
+	( cd myapp && APP_ENV=dev USE_TESTCONTAINERS=true poetry run pytest -vv \
+		--log-cli-level=INFO \
+  		--log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s" \
+		--cov=myapp --cov-report=term-missing \
+		--cov-report=xml:coverage-myapp.xml --cov-fail-under=20 ); \
+	echo "Stopping port-forward..."; \
+	kill $$PF_PID || true
+
+# URL access / health check for Minikube (like check-api)
+check-minikube-api: deploy-minikube-local
+	@echo "Port-forwarding myapp-mklatest-myapp service to localhost:8000 for health check..."
+	@kubectl port-forward svc/myapp-mklatest-myapp 8000:8000 >/tmp/kube-pf-myapp.log 2>&1 & \
+	PF_PID=$$!; \
+	for i in 1 2 3 4 5; do \
+	  sleep 5; \
+	  if curl -sf http://localhost:8000/docs > /dev/null; then \
+	    echo "Minikube API is up!"; \
+	    kill $$PF_PID || true; \
+	    exit 0; \
+	  else \
+	    echo "Minikube API not ready yet (attempt $$i)..."; \
+	  fi; \
+	done; \
+	echo "Minikube API did not become ready in time"; \
+	kill $$PF_PID || true; \
+	exit 1
+
+# want a single “Kubernetes quick loop” target
+# 	- Build images into Minikube.
+# 	- Deploy via Helm.
+# 	- Run smoke tests against the live Minikube app.
+# 	- Confirm /docs is reachable via port‑forward.
+k8s-test: deploy-minikube-local test-minikube test-minikube-all check-minikube-api
+	@echo "Minikube deploy + pytest smoke + API health check completed."
+
+# That will create:
+# 	Deployment: mydb-postgres
+# 	Service: mydb-postgres (ClusterIP, port 5432)
+deploy-minikube-db: ensure-minikube
+	@echo "Deploying Postgres to Minikube..."
+	helm upgrade --install mydb charts/postgres
+
+# We’ll:
+# 	- Ensure Minikube + Postgres chart are up.
+# 	- Port‑forward mydb-postgres to localhost:5433.
+# 	- Run pytest with USE_TESTCONTAINERS=false and DB_* envs pointing at this forwarded DB.
+test-minikube-db: deploy-minikube-db deploy-minikube-local
+	@echo "Port-forwarding Minikube Postgres service to localhost:5433..."
+	@kubectl port-forward svc/mydb-postgres 5433:5432 >/tmp/kube-pf-db.log 2>&1 & \
+	PF_DB_PID=$$!; \
+	sleep 5; \
+	echo "Running smoke tests against Minikube app + DB..."; \
+	( cd myapp && \
+	  USE_TESTCONTAINERS=false \
+	  DB_HOST=127.0.0.1 \
+	  DB_PORT=5433 \
+	  DB_NAME=mydb \
+	  DB_USER=myuser \
+	  DB_PASSWORD=mypassword \
+	  poetry run pytest -m smoke \
+	    --log-cli-level=INFO \
+	    --log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s" ) ; \
+	echo "Stopping DB port-forward..."; \
+	kill $$PF_DB_PID || true
+
+# Want to hit the app via HTTP, extend this with an app port‑forward
+k8s-test-db: deploy-minikube-db deploy-minikube-local
+	@echo "Port-forwarding myapp and Postgres from Minikube..."
+	@kubectl port-forward svc/myapp-mklatest-myapp 8000:8000 >/tmp/kube-pf-app.log 2>&1 & \
+	PF_APP_PID=$$!; \
+	kubectl port-forward svc/mydb-postgres 5433:5432 >/tmp/kube-pf-db.log 2>&1 & \
+	PF_DB_PID=$$!; \
+	sleep 5; \
+	echo "Running All tests against Minikube app + DB..."; \
+	( cd myapp && \
+	  USE_TESTCONTAINERS=false \
+	  DB_HOST=127.0.0.1 \
+	  DB_PORT=5433 \
+	  DB_NAME=mydb \
+	  DB_USER=myuser \
+	  DB_PASSWORD=mypassword \
+	  poetry run pytest -vv \
+	    --log-cli-level=INFO \
+	    --log-cli-format="%(asctime)s %(levelname)s [%(name)s] %(message)s" ) ; \
+	echo "Checking /docs on Minikube app..."; \
+	if curl -sf http://localhost:8000/docs >/dev/null; then \
+	  echo "Minikube API is up!"; \
+	else \
+	  echo "Minikube API not responding on /docs"; \
+	fi; \
+	echo "Stopping port-forwards..."; \
+	kill $$PF_APP_PID $$PF_DB_PID || true
 
 # Your deploy-minikube-dev target pulls prebuilt images from GHCR and doesn’t touch Docker env
 # Usage:
