@@ -1,0 +1,24 @@
+# Install/upgrade both charts with a values-local.yaml.
+# Used by Makefile for local check with Minikube
+image:
+  # Same repo as CI uses (just without the tag, which we set here)
+  # This ensures the Helm chart pulls the same image your CI deploy-dev job builds and pushes to GHCR with :dev
+  #repository: ghcr.io/<your-repo-lower>/myapp
+  #tag: "dev" # use the dev image for Minikube
+  fullName: "myapp:mklatest" # Using locally build docker image and passing as full name
+
+config:
+  APP_ENV: "dev"
+  LOG_LEVEL: "info"
+  OTEL_ENABLED: "false"
+  OTEL_SERVICE_NAME: "myapp-minikube"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "api.uptrace.dev:4317"
+  DISABLE_CUSTOM_MIDDLEWARE: "false"
+
+secret:
+  name: myapp-secret
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_NAME: mydb
+  DB_USER: myuser
+  DB_PASSWORD: mypassword

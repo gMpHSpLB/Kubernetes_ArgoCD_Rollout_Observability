@@ -1,0 +1,38 @@
+# This file defines a Kubernetes ConfigMap template for 
+# your Helm chart. Its purpose is to turn values from 
+# values.yaml into a reusable config object that your 
+# app can consume at runtime, without baking those settings 
+# into the container image.
+# Why this file exists
+# The main reason is to separate configuration from application 
+# code. Kubernetes ConfigMaps are meant to store non-sensitive 
+# settings like ports, feature flags, environment names, API URLs, 
+# and other app behavior settings. This lets you change configuration 
+# without rebuilding the Docker image or changing the code.
+
+# In Helm, putting this in templates/configmap.yaml means the 
+# ConfigMap is generated automatically when you install or 
+# upgrade the chart. That makes deployments repeatable and 
+# environment-specific, because different values.yaml files 
+# can produce different ConfigMaps for dev, staging, and production
+
+# In practice, this file becomes the bridge between chart 
+# configuration (values.yaml) and the running app’s environment.
+apiVersion: v1
+kind: ConfigMap # tell Kubernetes this resource is a ConfigMap.
+# builds the ConfigMap name dynamically using a Helm helper, 
+# so the name is unique and consistent with the release/chart 
+# naming convention.
+metadata:
+  name: {{ include "myapp.fullname" . }}-config
+# data: is where the key-value configuration goes.
+# range $key, $value := .Values.config loops over 
+#    every entry inside .Values.config from your 
+#    values.yaml file.
+# 
+#    key/value pair into the ConfigMap, and quote 
+#    forces the value to be rendered as a string
+data:
+  {{- range $key, $value := .Values.config }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

@@ -1,0 +1,34 @@
+# This file is the metadata file for a Helm chart. 
+# It tells Helm what the chart is, which version it is, 
+# and how to identify the app it packages.
+# 
+# What this file does
+#     Chart.yaml does not define your FastAPI app logic. 
+#     Instead, it describes the Helm chart itself, which 
+#     is the package Helm uses to deploy Kubernetes resources 
+#     for the app.
+# Why we use this file
+#     Helm needs Chart.yaml to treat the folder as a valid 
+#     chart and to understand basic package metadata before 
+#     it renders templates into Kubernetes manifests. 
+#     It also helps with release management, dependency tracking, 
+#     chart publishing, and versioned upgrades/rollbacks.
+# Real use case
+#     A practical use case is deploying your FastAPI service 
+#     consistently across environments like local, staging, 
+#     and production. For example, you can keep the Kubernetes 
+#     templates in the chart and change only values such as 
+#     image tag, replica count, service type, or ingress settings 
+#     without rewriting manifests each time.
+# Why this matters in practice
+#     Without a Helm chart, you often end up maintaining many 
+#     raw Kubernetes YAML files by hand. With Helm, Chart.yaml 
+#     gives structure and metadata, while the rest of the chart 
+#     handles templated Kubernetes resources, making deployments 
+#     repeatable and easier to upgrade or roll back.
+apiVersion: v2 # means this chart uses Helm chart format version 2, which is the standard for Helm 3 charts.
+name: myapp # is the chart’s name, so Helm identifies this package as myapp.
+description: Helm chart for the myapp FastAPI service
+type: application # means this chart deploys an app, not a reusable library chart.
+version: 0.1.0 # is the chart version, used for packaging and upgrading the Helm chart itself.
+appVersion: "1.0.0" # is the version of the actual application being deployed, so it can differ from the chart version.

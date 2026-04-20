@@ -221,6 +221,10 @@ jobs:
             echo "" >> "$GITHUB_STEP_SUMMARY"
             cat code-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
           fi
+           
+      - name: Deploy to Minikube
+        run: |
+          make deploy-minikube-local
 
       - name: Clean all
         run: |
@@ -332,6 +336,12 @@ jobs:
         run: |
           sleep 10
           curl -f http://localhost:8000/docs || exit 1
+      
+      - name: Deploy Dev imiage to Minikube
+        run: |
+          make deploy-minikube-dev \
+            MYAPP_IMAGE=${{ needs.ci.outputs.image_myapp_dev }} \
+            MYLEARNING_IMAGE=${{ needs.ci.outputs.image_mylearning_dev }}
 
       - name: Tear down dev stack
         env:

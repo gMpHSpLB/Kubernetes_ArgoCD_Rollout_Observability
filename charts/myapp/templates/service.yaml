@@ -1,0 +1,70 @@
+# This file defines a Kubernetes Service for your app. 
+# In simple terms, it gives your Pods a stable network 
+# endpoint so other Pods, or users inside the cluster, 
+# can reach your application reliably.
+#
+# What this file does
+#   Your file is a Helm template, not plain YAML. Helm fills 
+#   in values like {{ .Release.Name }} and {{ .Values.service.port }} 
+#   when you install or upgrade the chart, so the same template can be 
+#   reused across environments such as dev, staging, and production.
+# Why we use it
+#   A Service solves a common Kubernetes problem: 
+#     Pods are temporary and their IPs change, but 
+#     a Service gives you one stable address to connect to. 
+#     Without a Service, other apps would need to track 
+#     changing Pod IPs directly, which is fragile and hard 
+#     to manage.
+#
+# In practice, this means:
+#   - Your frontend can talk to your backend using a fixed Service name.
+#   - Kubernetes can load-balance traffic across multiple healthy Pods behind that Service.
+#   - You can replace, scale, or restart Pods without breaking internal communication.
+#
+# Real use case
+#   A common use case is exposing a backend API inside the 
+#   cluster. For example, your myapp Deployment might run 
+#   three replicas of a FastAPI app listening on container 
+#   port 8000, and this Service exposes them as one logical 
+#   endpoint on the port defined in values.yaml.
+#
+# Example flow:
+#   - Your Deployment creates multiple Pods.
+#   - This Service selects those Pods using matching labels.
+#   - Another app, like a frontend or worker, calls http://myapp:80 or whatever service port you configured.
+#   - Kubernetes forwards that traffic to one of the healthy Pods on targetPort: 8000.
+#
+# Why Helm templating helps
+# Using Helm here makes the Service reusable and environment-aware. 
+# For example, service.type can be ClusterIP in dev and LoadBalancer 
+# in production without changing the template itself.
+#
+# That is the main real-world benefit: one template, many deployments, 
+# fewer manual edits, and fewer mistakes.
+#
+# Important detail in your file
+# The selector is the most critical part:
+#   - app.kubernetes.io/name: {{ include "myapp.name" . }}
+#   - app.kubernetes.io/instance: {{ .Release.Name }}
+#
+# These labels must match the labels on your Pods, otherwise 
+# the Service will not find any Pods to route traffic to. 
+# If the labels do not match, the Service exists, but traffic 
+# has nowhere to go.
+apiVersion: v1 # means this is using the core Kubernetes API for a Service
+kind: Service # tells Kubernetes to create a Service object, which acts as a stable network front door for a set of Pods.
+metadata:
+  name: {{ include "myapp.fullname" . }} # sets the Service name dynamically through Helm, usually to avoid naming collisions across releases.
+  labels: # add metadata so Kubernetes and your Helm chart can identify and group the resource.
+    app.kubernetes.io/name: {{ include "myapp.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.type }} #  controls the Service type, such as ClusterIP, NodePort, or LoadBalancer.
+  selector: # tells the Service which Pods belong to it by matching labels.
+    app.kubernetes.io/name: {{ include "myapp.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports: # defines how traffic reaches the app
+    - port: {{ .Values.service.port }} #  is the Service port exposed to clients,
+      targetPort: 8000 # is the container port the traffic is sent to
+      protocol: TCP #  is the network protocol.
+      name: http

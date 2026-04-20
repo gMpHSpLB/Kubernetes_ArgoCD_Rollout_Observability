@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 .PHONY: lint format type security quality security-deps docker-security-deps docker-scan docker-scan-dev-image \
         coverage smoke-test test docker-build docker-db docker-test run check-api clean-coverage clean \
-        dev-up dev-down hit-api-multiple
+        dev-up dev-down hit-api-multiple deploy-minikube deploy-minikube-ci create-minikube-secrets
 
 ###############Code Quality ###############################
 lint:
@@ -339,3 +339,47 @@ dev-down:
 
 hit-api-multiple:
 	for i in {1..20}; do curl -s -o /dev/null http://localhost:8000/docs; done
+
+#######################Deployment using Kubernetes ########################
+
+# Create or update K8s Secrets needed for Minikube dev
+# Leading - before kubectl delete tells make: ignore error if the secret doesn’t exist.
+# This keeps dev simple: each run ensures you have a clean myapp-secret with known values.
+create-minikube-secrets:
+	@echo "Creating/updating myapp-secret in Minikube..."
+	# Try to create; if it exists, delete and recreate (simple dev behavior)
+	-kubectl delete secret myapp-secret >/dev/null 2>&1 || true
+	kubectl create secret generic myapp-secret \
+	  --from-literal=DB_HOST=db \
+	  --from-literal=DB_PORT=5432 \
+	  --from-literal=DB_NAME=mydb \
+	  --from-literal=DB_USER=myuser \
+	  --from-literal=DB_PASSWORD=mypassword
+
+# This uses helm upgrade --install as recommended for idempotent deploys and 
+# overlays environment-specific values via -f values-local.yaml
+#		- Ensure Minikube is running/using local Docker (optional).
+#		- Install/upgrade both charts with a values-local.yaml per app.
+# Build images into Minikube Docker and deploy via Helm
+deploy-minikube-local:
+	@echo "Using Minikube Docker daemon..."
+	eval "$$(minikube docker-env)" && \
+	docker build -t myapp:mklatest -f myapp/Dockerfile . && \
+	docker build -t mylearning:mklatest -f mylearning/Dockerfile . && \
+	helm upgrade --install myapp-mklatest charts/myapp \
+	  --set image.fullName="myapp:mklatest"
+	# If you want to deploy mylearning too, uncomment and keep this as a full command:
+	#helm upgrade --install mylearning-mklatest charts/mylearning \
+	#  --set image.fullName="mylearning:mklatest"
+
+# Usage:
+# make deploy-minikube-ci \
+#   MYAPP_IMAGE=ghcr.io/<owner>/<repo>/myapp:dev \
+#   MYLEARNING_IMAGE=ghcr.io/<owner>/<repo>/mylearning:dev
+deploy-minikube-dev:
+	@echo "Deploying myapp and mylearning to Minikube with Helm (pulling from GHCR)..."
+	helm upgrade --install myapp-dev charts/myapp \
+	  --set image.fullName="$(MYAPP_IMAGE)"
+	# If you want to deploy mylearning too, uncomment and keep this as a full command:
+	#helm upgrade --install mylearning-dev charts/mylearning \
+	#  --set image.fullName="$(MYLEARNING_IMAGE)"

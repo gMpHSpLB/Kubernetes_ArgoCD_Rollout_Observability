@@ -178,3 +178,5 @@ The best next implementation order is:
     Confirm both services return the expected HTTP codes.
 
     Then wire them into Kubernetes liveness/readiness probes in the Helm chart.
+
+Step 3 – Create Helm charts for myapp and mylearning, wired to /healthz and /readyz and ready for Minikube.
