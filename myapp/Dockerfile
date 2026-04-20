@@ -41,6 +41,7 @@ COPY mylearning /mylearning
 
 # Keep Poetry (or its output) only in build layers, not in production layers where possible.
 RUN pip install --no-cache-dir poetry && \
+    cd /app && \
     poetry install --only main --no-interaction --no-ansi -vvv && \
     if [ "$INSTALL_DEV" = "true" ]; then \
       poetry install --with dev --no-interaction --no-ansi -vvv; \

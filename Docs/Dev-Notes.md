@@ -282,3 +282,11 @@ These are the first commands you’ll use most often:
         minikube stop to pause it.
         minikube delete to remove the cluster entirely.
         minikube status to check whether it is running
+
+To know the pods and services:
+kubectl get pods
+kubectl get svc
+
+Port-forward for service like: myapp-dev-myapp
+ 
+kubectl port-forward svc/myapp-dev-myapp 8000:8000

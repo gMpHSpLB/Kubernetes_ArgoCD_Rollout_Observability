@@ -329,7 +329,9 @@ app = create_app()
 # /healthz (liveness) and /readyz (readiness) excluded from tracing, which matches common recommendations for Kubernetes probes.
 FastAPIInstrumentor.instrument_app(
     app,
-    excluded_urls=os.getenv("OTEL_PYTHON_FASTAPI_EXCLUDED_URLS", "healthz,readyz"), # This is exactly what OTEL best-practice articles recommend: exclude health endpoints from tracing to avoid huge amounts of low-value spans.
+    excluded_urls=os.getenv(
+        "OTEL_PYTHON_FASTAPI_EXCLUDED_URLS", "healthz,readyz"
+    ),  # This is exactly what OTEL best-practice articles recommend: exclude health endpoints from tracing to avoid huge amounts of low-value spans.
     server_request_hook=server_request_hook,
 )
 print("OTEL: FastAPIInstrumentor.instrument_app (global) done")
@@ -372,7 +374,8 @@ if not DISABLE_CUSTOM_MIDDLEWARE:
             raise HTTPException(status_code=503, detail="Shutting down")
         return await call_next(request)
 
-# /healthz and /readyz are just normal HTTP routes; Prometheus doesn’t scrape them. 
+
+# /healthz and /readyz are just normal HTTP routes; Prometheus doesn’t scrape them.
 # It only scrapes /metrics.
 """
 Note:
@@ -384,9 +387,12 @@ clusters can manage restarts and traffic safely.
 This is a basic liveness endpoint. It always returns success and is intended
 to answer: “Is the application process alive?”
 """
+
+
 @app.get("/healthz", tags=["health"])
 async def healthz() -> Dict[str, str]:
     return {"status": "ok"}
+
 
 """
 This is a readiness endpoint. It answers: “Is the application ready to receive traffic?”
@@ -397,6 +403,8 @@ should be routed to the service.
 
 Kubernetes will stop sending traffic when readiness fails.
 """
+
+
 @app.get("/readyz", tags=["health"])
 async def readyz() -> Dict[str, str]:
     if state.shutting_down:

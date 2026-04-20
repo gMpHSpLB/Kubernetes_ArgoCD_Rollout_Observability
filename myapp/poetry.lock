@@ -1635,7 +1635,7 @@ optional = false
 python-versions = ">=3.11"
 groups = ["main"]
 files = []
-develop = true
+develop = false
 
 [package.source]
 type = "directory"
@@ -3914,4 +3914,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "a8f09fb6e7b718b4a101400a16bbf693f20cfb205ab39dcd54e5f86402eebfbf"
+content-hash = "da7e0456242e9eae506256af8339ebdba323ce5370e6b0dba93137d8f64820b3"

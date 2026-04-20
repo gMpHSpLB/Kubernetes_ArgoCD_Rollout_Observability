@@ -48,7 +48,7 @@ def test_db_is_isolated_between_tests(db_session: Session) -> None:
 # modules.
 # pytest.mark.db is define in pyproject.toml under pytest ini config.
 # mark one DB test as smoke as well, so your smoke suite checks the DB end‑to‑end without running the full DB test set.
-@pytest.mark.db 
+@pytest.mark.db
 @pytest.mark.smoke
 def test_create_user(db_session: Session) -> None:
     user = UserCreate(name="test", email="[email protected]")

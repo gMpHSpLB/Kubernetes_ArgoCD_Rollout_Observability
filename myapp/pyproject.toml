@@ -31,7 +31,7 @@ opentelemetry-exporter-otlp = ">=1.25.0"
 opentelemetry-instrumentation-fastapi = ">=0.46b0"
 opentelemetry-instrumentation-logging = ">=0.46b0"
 
-mylearning = { path = "../mylearning", develop = true }  # mylearning as a dependency of myapp, develop = true means “install this dependency in editable (dev) mode.”
+mylearning = { path = "../mylearning", develop = false }  # mylearning as a dependency of myapp, develop = true means “install this dependency in editable (dev) mode.” and develop = false This tells Poetry to build/install mylearning as a package, not as an editable dev‑style link.
 
 [tool.poetry]
 package-mode = false

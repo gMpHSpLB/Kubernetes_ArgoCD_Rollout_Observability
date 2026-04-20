@@ -2,7 +2,8 @@ SHELL := /bin/bash
 
 .PHONY: lint format type security quality security-deps docker-security-deps docker-scan docker-scan-dev-image \
         coverage smoke-test test docker-build docker-db docker-test run check-api clean-coverage clean \
-        dev-up dev-down hit-api-multiple deploy-minikube deploy-minikube-ci create-minikube-secrets
+        dev-up dev-down hit-api-multiple deploy-minikube deploy-minikube-ci create-minikube-secrets \
+		ensure-minikube recreate-minikube deploy-minikube-local-clean \
 
 ###############Code Quality ###############################
 lint:
@@ -356,22 +357,57 @@ create-minikube-secrets:
 	  --from-literal=DB_USER=myuser \
 	  --from-literal=DB_PASSWORD=mypassword
 
+# start cluster if needed.
+ensure-minikube:
+	@echo "Checking minikube status..."
+	@if ! minikube status >/dev/null 2>&1; then \
+	  echo "Minikube not running, starting..."; \
+	  minikube start --memory=3072 --cpus=2 ; \
+	fi
+
+# hard reset when things are really broken.
+recreate-minikube:
+	@echo "Recreating Minikube cluster..."
+	minikube stop || true
+	minikube delete --all=true --purge=true || true
+	minikube start --memory=3072 --cpus=2
+
 # This uses helm upgrade --install as recommended for idempotent deploys and 
 # overlays environment-specific values via -f values-local.yaml
 #		- Ensure Minikube is running/using local Docker (optional).
 #		- Install/upgrade both charts with a values-local.yaml per app.
 # Build images into Minikube Docker and deploy via Helm
-deploy-minikube-local:
+# Note:
+#	let Helm own the secret and remove the separate kubectl create 
+#   secret step. That avoids split ownership, prevents release 
+#   collisions, and matches Helm’s resource ownership model 
+#   more cleanly.
+# Why this is the better design
+#	Helm tracks ownership with labels and annotations, and 
+#   it expects the objects in a release to be created and managed 
+#   by that release. When you create the same secret manually and 
+#   also define it in the chart, you create two controllers of 
+#   the same resource, which is exactly what caused your error
+#   Builds images into minikube's Docker, then deploys. Restores host Docker env afterwards.
+deploy-minikube-local: ensure-minikube
 	@echo "Using Minikube Docker daemon..."
 	eval "$$(minikube docker-env)" && \
 	docker build -t myapp:mklatest -f myapp/Dockerfile . && \
 	docker build -t mylearning:mklatest -f mylearning/Dockerfile . && \
+	eval "$$(minikube docker-env -u)"
+	@echo "Deploying myapp to Minikube with Helm..."
 	helm upgrade --install myapp-mklatest charts/myapp \
 	  --set image.fullName="myapp:mklatest"
 	# If you want to deploy mylearning too, uncomment and keep this as a full command:
 	#helm upgrade --install mylearning-mklatest charts/mylearning \
 	#  --set image.fullName="mylearning:mklatest"
 
+# “nuke cluster and redeploy” when regular deploy fails.
+# Add a “clean” deploy for when the cluster is flaky
+# Sometimes Minikube profiles get into a weird state and only delete+start fixes them. To encode that pattern
+deploy-minikube-local-clean: recreate-minikube deploy-minikube-local
+
+# Your deploy-minikube-dev target pulls prebuilt images from GHCR and doesn’t touch Docker env
 # Usage:
 # make deploy-minikube-ci \
 #   MYAPP_IMAGE=ghcr.io/<owner>/<repo>/myapp:dev \
@@ -383,3 +419,4 @@ deploy-minikube-dev:
 	# If you want to deploy mylearning too, uncomment and keep this as a full command:
 	#helm upgrade --install mylearning-dev charts/mylearning \
 	#  --set image.fullName="$(MYLEARNING_IMAGE)"
+

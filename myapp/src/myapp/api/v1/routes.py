@@ -17,7 +17,7 @@ router = APIRouter(tags=["users"])
 
 @router.get("/users", response_model=List[UserRead])
 def read_users(limit: int = 100, db: Session = Depends(get_db)) -> List[UserRead]:
-    return list_users(db, limit=limit)  # type: ignore[no-any-return]
+    return list_users(db, limit=limit)
 
 
 @router.get("/users/{user_id}", response_model=UserRead)
