@@ -78,7 +78,26 @@ secret:
   DB_NAME: mydb
   DB_USER: myuser
   DB_PASSWORD: mypassword
+  UPTRACE_TOKEN: ""            # override per env / via CI or kubectl
+  UPTRACE_DSN: ""
 
 # Optional extra env vars (non-secret) for experiments
 # is a place to add optional environment variables later, usually for testing or experiments.
 extraEnv: []
+
+# add pod Non-root security Context
+# These enforce non-root and limited capabilities at runtime, matching hardened container guidelines.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001      # must match UID in your myapp Dockerfile
+  runAsGroup: 10001
+  fsGroup: 10001
+
+# add container Non-root security Context
+# These enforce non-root and limited capabilities at runtime, matching hardened container guidelines.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL

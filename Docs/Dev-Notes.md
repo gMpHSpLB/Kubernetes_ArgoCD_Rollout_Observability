@@ -294,3 +294,34 @@ kubectl port-forward svc/myapp-dev-myapp 8000:8000
 
 Check logs:
 kubectl logs deploy/mydb-postgres
+
+Confirm the Job and its pods
+kubectl get jobs
+kubectl get pods -l job-name=mylearning-mklatest-mylearning-smoke
+
+      - Check that the Job   
+        mylearning-mklatest-mylearning-smoke actually exists.
+
+      - Look at the pod status: Pending, Running, Error,  
+        CrashLoopBackOff, etc
+
+Describe the Job and the pod
+kubectl describe job mylearning-mklatest-mylearning-smoke
+kubectl describe pod <pod-name>
+
+Focus on the Events section:
+      - If pods are Pending, you may see FailedScheduling 
+        (not enough CPU/memory, or taints, etc.).
+
+      - If containers cannot start, you may see 
+        ImagePullBackOff, CreateContainerConfigError, or similar
+
+Check logs from the Job pod
+If the pod status is Running or Error (not Pending), fetch logs:
+
+kubectl logs job/mylearning-mklatest-mylearning-smoke
+
+or if that fails:
+
+kubectl get pods -l job-name=mylearning-mklatest-mylearning-smoke
+kubectl logs <pod-name>

@@ -60,8 +60,12 @@ spec:
         app.kubernetes.io/name: {{ include "myapp.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      securityContext:
+{{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers: # defines the application container, including image, port, environment variables, probes, and resource settings.
         - name: myapp
+          securityContext:
+{{- toYaml .Values.securityContext | nindent 12 }}
           # If image.fullName is non‑empty, use it, allowing CI to pass exactly ghcr.io/$REPO_LOWER/myapp:dev.
           # Otherwise, fall back to repository:tag for local/manual use
           image: "{{- if .Values.image.fullName -}}{{ tpl .Values.image.fullName . }}{{- else -}}{{ .Values.image.repository }}:{{ .Values.image.tag }}{{- end -}}"
@@ -97,5 +101,5 @@ spec:
             timeoutSeconds: 2
             successThreshold: 1
             failureThreshold: 3
-          resources:
+          resources: #  Resource requests/limits from values.yaml
 {{- toYaml .Values.resources | nindent 12 }}

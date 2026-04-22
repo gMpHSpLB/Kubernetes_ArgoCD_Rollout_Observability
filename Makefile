@@ -508,7 +508,7 @@ check-minikube-api: deploy-minikube-local
 # 	- Deploy via Helm.
 # 	- Run smoke tests against the live Minikube app.
 # 	- Confirm /docs is reachable via port‑forward.
-k8s-test: deploy-minikube-local test-minikube test-minikube-all check-minikube-api
+k8s-test: deploy-minikube-local-clean test-minikube test-minikube-all check-minikube-api
 	@echo "Minikube deploy + pytest smoke + API health check completed."
 
 # That will create:
@@ -548,7 +548,7 @@ k8s-test-db: deploy-minikube-db deploy-minikube-local
 	PF_APP_PID=$$!; \
 	kubectl port-forward svc/mydb-postgres 5433:5432 >/tmp/kube-pf-db.log 2>&1 & \
 	PF_DB_PID=$$!; \
-	sleep 5; \
+	sleep 10; \
 	echo "Running All tests against Minikube app + DB..."; \
 	( cd myapp && \
 	  USE_TESTCONTAINERS=false \

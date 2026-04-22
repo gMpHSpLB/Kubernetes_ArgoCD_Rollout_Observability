@@ -22,3 +22,5 @@ secret:
   DB_NAME: mydb
   DB_USER: myuser
   DB_PASSWORD: mypassword
+  UPTRACE_TOKEN: ""            # override per env / via CI or kubectl
+  UPTRACE_DSN: ""

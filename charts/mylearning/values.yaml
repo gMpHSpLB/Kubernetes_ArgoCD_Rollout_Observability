@@ -54,3 +54,20 @@ tests: # job to runs pytest -m smoke.
       - --cov-report=term-missing
       - --cov-report=xml:coverage-mylearning.xml
       - --cov-fail-under=20
+
+# add pod Non-root security Context
+# These enforce non-root and limited capabilities at runtime, matching hardened container guidelines.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10002      # must match UID in your myapp Dockerfile
+  runAsGroup: 10002
+  fsGroup: 10002
+
+# add container Non-root security Context
+# These enforce non-root and limited capabilities at runtime, matching hardened container guidelines.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
