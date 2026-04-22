@@ -336,15 +336,31 @@ jobs:
         run: |
           sleep 10
           curl -f http://localhost:8000/docs || exit 1
-      
-      - name: Deploy myapp Dev image
+
+      # Note: You stop creating the Secret via kubectl when move to Vault / External Secrets  
+      - name: K8 Create/Update myapp-secret (dev)
         run: |
-          make deploy-myapp-minikube-dev \
+          make create-secrets \
+            K8_DB_HOST=${{ secrets.K8_DEV_DB_HOST }} \
+            K8_DB_PORT=${{ secrets.K8_DEV_DB_PORT }} \
+            K8_DB_NAME=${{ secrets.K8_DEV_DB_NAME }} \
+            K8_DB_USER=${{ secrets.K8_DEV_DB_USER }} \
+            K8_DB_PASSWORD=${{ secrets.K8_DEV_DB_PASSWORD }} \
+            K8_UPTRACE_TOKEN=${{ secrets.K8_DEV_UPTRACE_TOKEN }} \
+            K8_UPTRACE_DSN=${{ secrets.K8_DEV_UPTRACE_DSN }}
+      
+      - name: k8 Deploy myapp Dev image
+        run: |
+          make k8-deploy-myapp \
+            CHART_NAME="myapp-dev" \
+            ENV_VALUES="environments/dev/values-myapp.yaml"
             MYAPP_IMAGE=${{ needs.ci.outputs.image_myapp_dev }}
             
-      - name: Deploy mylearning Dev image to Minikube and run job
+      - name: k8 Deploy mylearning Dev image
         run: |
-          make deploy-mylearning-minikube-dev \
+          make k8-deploy-mylearning \
+            CHART_NAME="mylearning-dev" \
+            ENV_VALUES="environments/dev/values-mylearning.yaml"
             MYLEARNING_IMAGE=${{ needs.ci.outputs.image_mylearning_dev }}
 
       - name: Tear down dev stack
@@ -429,6 +445,32 @@ jobs:
           sleep 10
           curl -f http://localhost:8000/docs || exit 1
 
+      # Note: You stop creating the Secret via kubectl when move to Vault / External Secrets     
+      - name: K8 Create/Update myapp-secret (staging)
+        run: |
+          make create-secrets \
+            K8_DB_HOST=${{ secrets.K8_STAGING_DB_HOST }} \
+            K8_DB_PORT=${{ secrets.K8_STAGING_DB_PORT }} \
+            K8_DB_NAME=${{ secrets.K8_STAGING_DB_NAME }} \
+            K8_DB_USER=${{ secrets.K8_STAGING_DB_USER }} \
+            K8_DB_PASSWORD=${{ secrets.K8_STAGING_DB_PASSWORD }} \
+            K8_UPTRACE_TOKEN=${{ secrets.K8_STAGING_UPTRACE_TOKEN }} \
+            K8_UPTRACE_DSN=${{ secrets.K8_STAGING_UPTRACE_DSN }}
+      
+      - name: k8 Deploy myapp Staging image
+        run: |
+          make k8-deploy-myapp \
+            CHART_NAME="myapp-staging" \
+            ENV_VALUES="environments/staging/values-myapp.yaml"
+            MYAPP_IMAGE=${{ needs.ci.outputs.image_myapp_staging }}
+            
+      - name: k8 Deploy mylearning Staging image
+        run: |
+          make k8-deploy-mylearning \
+            CHART_NAME="mylearning-staging" \
+            ENV_VALUES="environments/staging/values-mylearning.yaml"
+            MYLEARNING_IMAGE=${{ needs.ci.outputs.image_mylearning_staging }}
+
       - name: Tear down staging stack
         env:
           IMAGE_MYAPP: ${{ needs.ci.outputs.image_myapp_staging }}
@@ -493,6 +535,33 @@ jobs:
           docker pull ${{ needs.ci.outputs.image_mylearning_staging }}
           docker tag ${{ needs.ci.outputs.image_mylearning_staging }} ${{ needs.ci.outputs.image_mylearning_prod }}
           docker push ${{ needs.ci.outputs.image_mylearning_prod }}
+
+      # Note: You stop creating the Secret via kubectl when move to Vault / External Secrets 
+      - name: K8 Create/Update myapp-secret (prod)
+        run: |
+          make create-secrets \
+            K8_DB_HOST=${{ secrets.K8_PROD_DB_HOST }} \
+            K8_DB_PORT=${{ secrets.K8_PROD_DB_PORT }} \
+            K8_DB_NAME=${{ secrets.K8_PROD_DB_NAME }} \
+            K8_DB_USER=${{ secrets.K8_PROD_DB_USER }} \
+            K8_DB_PASSWORD=${{ secrets.K8_PROD_DB_PASSWORD }} \
+            K8_UPTRACE_TOKEN=${{ secrets.K8_PROD_UPTRACE_TOKEN }} \
+            K8_UPTRACE_DSN=${{ secrets.K8_PROD_UPTRACE_DSN }}
+      
+      - name: k8 Deploy myapp Prod image
+        run: |
+          make k8-deploy-myapp \
+            CHART_NAME="myapp-prod" \
+            ENV_VALUES="environments/prod/values-myapp.yaml"
+            MYAPP_IMAGE=${{ needs.ci.outputs.image_myapp_prod }}
+            
+      - name: k8 Deploy mylearning Prod image
+        run: |
+          make k8-deploy-mylearning \
+            CHART_NAME="mylearning-prod" \
+            ENV_VALUES="environments/prod/values-mylearning.yaml"
+            MYLEARNING_IMAGE=${{ needs.ci.outputs.image_mylearning_prod }}
+
   #Deploy to real Production Server
   #What this does:
     # - Waits for deploy-prod to finish (so :vX.Y.Z tags are pushed).

@@ -347,19 +347,21 @@ hit-api-multiple:
 
 #######################Deployment using Kubernetes ########################
 
-# Create or update K8s Secrets needed for Minikube dev
+# Create or update K8s Secrets needed for dev/staging/prod
 # Leading - before kubectl delete tells make: ignore error if the secret doesn’t exist.
 # This keeps dev simple: each run ensures you have a clean myapp-secret with known values.
-create-minikube-secrets:
-	@echo "Creating/updating myapp-secret in Minikube..."
+create-secrets:
+	@echo "Creating/updating myapp-secret ..."
 	# Try to create; if it exists, delete and recreate (simple dev behavior)
-	-kubectl delete secret myapp-secret >/dev/null 2>&1 || true
+	kubectl delete secret myapp-secret --ignore-not-found >/dev/null 2>&1 || true
 	kubectl create secret generic myapp-secret \
-	  --from-literal=DB_HOST=db \
-	  --from-literal=DB_PORT=5432 \
-	  --from-literal=DB_NAME=mydb \
-	  --from-literal=DB_USER=myuser \
-	  --from-literal=DB_PASSWORD=mypassword
+	  --from-literal=DB_HOST=$(K8_DB_HOST) \
+	  --from-literal=DB_PORT=$(K8_DB_PORT) \
+	  --from-literal=DB_NAME=$(K8_DB_NAME) \
+	  --from-literal=DB_USER=$(K8_DB_USER) \
+	  --from-literal=DB_PASSWORD=$(K8_DB_PASSWORD) \
+	  --from-literal=UPTRACE_TOKEN=$(K8_UPTRACE_TOKEN) \
+	  --from-literal=UPTRACE_DSN=$(K8_UPTRACE_DSN)
 
 # start cluster if needed.
 ensure-minikube:
@@ -401,9 +403,11 @@ deploy-minikube-local: ensure-minikube
 	eval "$$(minikube docker-env -u)"
 	@echo "Deploying myapp to Minikube with Helm..."
 	helm upgrade --install myapp-mklatest charts/myapp \
+	  -f charts/myapp/values-local.yaml \
 	  --set image.fullName="myapp:mklatest"
 	@echo "Deploying mylearning to Minikube with Helm (with test jobs enabled)..."
 	helm upgrade --install mylearning-mklatest charts/mylearning \
+	  -f charts/mylearning/values.yaml \
 	  --set image.fullName="mylearning:mklatest" \
 	  --set tests.enabled=true \
 	  --set tests.smoke.enabled=true \
@@ -571,18 +575,20 @@ k8s-test-db: deploy-minikube-db deploy-minikube-local
 
 # Your deploy-minikube-dev target pulls prebuilt images from GHCR and doesn’t touch Docker env
 # Usage:
-# make deploy-minikube-ci \
+# 
 #   MYAPP_IMAGE=ghcr.io/<owner>/<repo>/myapp:dev \
 #   MYLEARNING_IMAGE=ghcr.io/<owner>/<repo>/mylearning:dev
-# Dev images from GHCR (no local build)
-deploy-myapp-minikube-dev: ensure-minikube
-	@echo "Deploying myapp to Minikube with Helm (pulling from GHCR)..."
-	helm upgrade --install myapp-dev charts/myapp \
+#   images from GHCR (no local build)
+k8-deploy-myapp:
+	@echo "Deploying myapp with Helm (pulling from GHCR)..."
+	helm upgrade --install $(CHART_NAME) charts/myapp \
+	  -f $(ENV_VALUES) \
 	  --set image.fullName="$(MYAPP_IMAGE)"
 
-deploy-mylearning-minikube-dev: ensure-minikube
-	@echo "Deploying mylearning (dev image) + test jobs to Minikube with Helm (pulling from GHCR)..."
-	helm upgrade --install mylearning-dev charts/mylearning \
+k8-deploy-mylearning:
+	@echo "Deploying mylearning image (pulling from GHCR)..."
+	helm upgrade --install $(CHART_NAME) charts/mylearning \
+	  -f $(ENV_VALUES) \
 	  --set image.fullName="$(MYLEARNING_IMAGE)" \
 	  --set tests.enabled=false \ # no dev dependency, so cannot test it.
 	  --set tests.smoke.enabled=false \

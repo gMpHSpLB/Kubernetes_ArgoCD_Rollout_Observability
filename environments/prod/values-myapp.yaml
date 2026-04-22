@@ -32,11 +32,7 @@
 #   Kubernetes deploy three pods instead of one. The same 
 #   idea applies to image tags, resource limits, and environment 
 #   variables.
-#
-# Note: Helm requires a base values.yaml in the chart; 
-# your environments/dev/values-myapp.yaml and the staging/prod 
-# files are overrides layered on top of it, not replacements.
-replicaCount: 1 # means the app should run as one pod by default.
+replicaCount: 3 # means the app should run as one pod by default.
 
 # Note: 
 # you can avoid hard‑coding the repo path in your Helm 
@@ -55,20 +51,20 @@ service:
 
 resources: # sets CPU and memory requests/limits so Kubernetes knows how much capacity the app needs and what maximum it may use
   limits:
-    cpu: "500m"
-    memory: "512Mi"
+    cpu: "1500m"
+    memory: "1536Mi"
   requests:
-    cpu: "250m"
-    memory: "256Mi"
+    cpu: "750m"
+    memory: "768Mi"
 
 # Non-secret config; becomes a ConfigMap
 # contains non-sensitive environment variables, 
 # which are typically turned into a ConfigMap.
 config:
-  APP_ENV: "dev"
+  APP_ENV: "prod"
   LOG_LEVEL: "info"
   OTEL_ENABLED: "true"
-  OTEL_SERVICE_NAME: "myapp-dev"
+  OTEL_SERVICE_NAME: "myapp-prod"
   OTEL_EXPORTER_OTLP_ENDPOINT: "api.uptrace.dev:4317"
   DISABLE_CUSTOM_MIDDLEWARE: "false"
   OTEL_TRACES_SAMPLER : "always_on"
@@ -79,19 +75,12 @@ config:
 secret:
   name: myapp-secret
   managedByHelm: false        # <--- key flag, means “do not render a Secret; assume it already exists in the cluster.”
-  # The other fields are just documentation / defaults; they won’t be used when managedByHelm is false.
-  DB_HOST: mydb-postgres # Postgres chart creates a Service named mydb-postgres on port 5432
-  DB_PORT: "5432"
-  DB_NAME: mydb
-  DB_USER: myuser
-  DB_PASSWORD: mypassword
-  UPTRACE_TOKEN: ""            # override per env / via dev/stage/prod
-  UPTRACE_DSN: ""
 
 # Optional extra env vars (non-secret) for experiments
 # is a place to add optional environment variables later, usually for testing or experiments.
 extraEnv: []
 
+# Pod-level security context (UID/GID)
 # add pod Non-root security Context
 # These enforce non-root and limited capabilities at runtime, matching hardened container guidelines.
 podSecurityContext:
