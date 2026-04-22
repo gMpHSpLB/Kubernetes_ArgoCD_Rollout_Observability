@@ -6,8 +6,6 @@ from fastapi.testclient import (
 
 from myapp.main import (
     app,  # Uses src/myapp/main.py The FastAPI app instance is called app at the bottom of that file.
-)
-from myapp.main import (
     state,
 )
 
