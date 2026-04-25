@@ -1,0 +1,21 @@
+# VCS
+.git/
+.gitignore
+.svn/
+.hg/
+.bzr/
+
+# macOS
+.DS_Store
+
+# IDEs / editors
+.idea/
+.vscode/
+*.swp
+*.tmp
+*.bak
+*~
+
+# Misc
+*.log
+*.out

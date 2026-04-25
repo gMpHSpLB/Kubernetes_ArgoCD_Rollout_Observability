@@ -1,0 +1,217 @@
+# This is a PrometheusRule Kubernetes manifest that efines 
+# alerting rules for your myapp service. Its use case is to 
+# detect service problems early, such as elevated 5xx errors, 
+# slow requests, crashing pods, and unhealthy rollouts, and 
+# then notify you through your alerting stack.
+#
+# What this file is
+# PrometheusRule is a custom resource used by the Prometheus 
+# Operator to load alert rules from Kubernetes manifests. In 
+# practice, you commit files like this into Git, apply them 
+# to the cluster, and Prometheus starts evaluating the expressions 
+# on a schedule.
+#
+# This file is called prometheus-rules-base.yaml, which suggests 
+# these are your “baseline” production alerts. These are usually 
+# the alerts that should fire even if you do not yet have full 
+# SLO-based alerting in place.
+#
+# How it fits in alerting
+# The rules here are symptom-based alerts. They watch for visible 
+# bad outcomes: errors, latency, restarts, and rollout failures. 
+# That is different from SLO/burn-rate alerts, which watch how quickly your error budget is being consumed and can warn before the SLO is actually breached.
+#
+# A good setup often uses both:
+#   - Base alerts for immediate operational issues.
+#   - Burn-rate alerts for service-level reliability tracking.
+#
+# Why these rules are useful
+# These rules cover the main failure modes of a web service:
+#   - Too many server errors.
+#   - Slow responses.
+#   - Pods crashing or looping.
+#   - Deployments not reaching desired capacity.
+#
+# That makes them good “base rules” because they are simple, 
+# actionable, and usually meaningful for on-call response. 
+# They help you catch problems even before you design full 
+# SLO-based alerting.
+#
+# Base rules vs burn-rate alerts
+#   Base rules answer questions like:
+#     - “Are users seeing too many errors right now?”
+#     - “Is latency bad right now?”
+#     - “Did a rollout fail?”
+#   Burn-rate alerts answer:
+#     - “How fast are we burning through our reliability budget?”
+#     - “Are we on track to violate the SLO soon?”
+# A common pattern is:
+#   - Warning alerts for symptoms.
+#   - Critical alerts for severe production-impacting issues.
+#   - Burn-rate alerts for SLO protection and early warning.
+# Small example
+# If your myapp suddenly starts returning 7% 5xx responses 
+# for 10 minutes, High5xxRate will fire because the error 
+# ratio is above 5% and the condition persisted long enough. 
+# If your p95 latency rises to 700ms for 5 minutes, HighRequestLatency 
+# will fire as well.
+#
+# If a deployment rollout leaves 2 of 5 replicas unavailable, 
+# DeploymentNotAvailable will fire after 10 minutes and tell 
+# you the rollout is not healthy.
+#
+# One important note
+# This file defines the rules only. It does not say where 
+# alerts get sent. Notification routing usually lives elsewhere, 
+# commonly in Alertmanager config or Grafana/Prometheus alert routing.
+#
+# Should rules stay same across environments?
+# Short answer: no, not exactly. The alert types are usually the same, but thresholds, severity, and whether the alert is enabled should differ by environment.
+
+# Dev
+# Dev should be noisy enough to catch obvious problems, but not page you like production.
+# Typical approach:
+
+  # Keep error and restart alerts, but make them less strict.
+
+  # Use warning only.
+
+  # Often disable paging and send to chat or dashboards instead.
+
+  # Latency thresholds can be looser because dev traffic is smaller and less stable.
+
+# Good dev posture:
+
+  # Errors: alert if >10% or even just log/observe.
+
+  # Latency: alert if p95 > 1s or 2s.
+
+  # Restarts: alert if frequent, but maybe only after many restarts.
+
+  # Deployment availability: often useful if developers rely on the environment, but still warning-level.
+
+# Staging
+# Staging should be closer to prod, because it tests release behavior before production.
+# Typical approach:
+
+  # Keep almost the same alert logic as prod.
+
+  # Slightly looser thresholds may be acceptable.
+
+  # Use warning + critical, but maybe route only to team chat unless release testing is active.
+
+  # Deployment availability and restart alerts are very useful here.
+
+# Good staging posture:
+
+  # Errors: close to prod thresholds.
+
+  # Latency: close to prod thresholds.
+
+  # Restarts: same or slightly looser.
+
+  # Deployment availability: same as prod.
+
+# Prod
+# Prod should be the strictest and most important environment.
+# Typical approach:
+
+  # Keep the exact base rules or even stricter ones.
+
+  # Use critical alerts for user-facing impact.
+
+  # Route to paging/on-call for severe issues.
+
+  # Add burn-rate alerts in addition to these symptom alerts.
+
+# Good prod posture:
+
+  # Errors: strict.
+
+  # Latency: strict.
+
+  # Restarts: strict.
+
+  # Deployment availability: strict.
+
+  # Add SLO/burn-rate alerts.
+#
+# Practical recommendation
+# A good pattern is:
+#   - Use the same rule names across environments.
+#   - Change thresholds per environment.
+#   - Change severity per environment.
+#   - Change notification routing per environment.
+#
+# That keeps your monitoring consistent while matching the importance of each environment.
+#
+# Example of a sane policy
+#   Dev: warning only, relaxed thresholds.
+#   Staging: warning and critical, close to production thresholds.
+#   Prod: full alerting, strict thresholds, plus SLO burn-rate alerts.
+# One important rule of thumb: dev should help engineers learn, staging should validate releases, and prod should protect users.
+apiVersion: monitoring.coreos.com/v1 # This says the resource uses the Prometheus Operator API version for monitoring objects. It tells Kubernetes how to interpret this custom resource.
+kind: PrometheusRule # This declares that the object contains Prometheus alerting rules.
+metadata: # Standard Kubernetes metadata section for naming and labeling the object.
+  name: {{ .Values.name | default (printf "%s-rules" .Chart.Name) }} # The name of this rule object inside Kubernetes.
+  namespace: {{ .Values.monitoring.namespace | quote }} # # This places the rule resource in the monitoring namespace, which is common for observability components.
+  labels: # Labels help the Prometheus Operator discover and select this rule.
+    release: {{ .Values.monitoring.release | quote }} # # This usually matches the Helm release name for the kube-prometheus-stack or related Prometheus setup.
+    environment: {{ .Values.environment | quote }}
+# Rule grouping
+spec: # The spec contains the actual alert definitions.
+  groups: # Prometheus groups rules together for organization and evaluation.
+    - name: {{ .Values.groupName | default (printf "%s.rules" .Chart.Name) }} # This is the group name. It is just a logical container for related alerts.
+      rules: # This starts the list of individual alert rules.
+        # 1) High5xxRate
+        # This rule says: “If more than 5% of requests are failing with 5xx errors for 5 minutes, alert me.”
+        # In simple terms, your app is returning too many server-side failures. This usually means a real backend problem, such as a broken dependency, bad release, database issue, or code bug.
+        - alert: High5xxRate
+        # The PromQL expression that decides when the alert fires.
+          expr: |
+            rate(http_server_requests_seconds_count{job={{ .Values.monitoring.job | quote }},status=~"5.."}[{{ .Values.alerts.window5m | quote }}]) /
+            rate(http_server_requests_seconds_count{job={{ .Values.monitoring.job | quote }}}[{{ .Values.alerts.window5m | quote }}]) > {{ .Values.alerts.high5xx.threshold }}
+          for: {{ .Values.alerts.high5xx.for | quote }} # The condition must remain true for 5 minutes before the alert actually fires. This reduces noise from short spikes.
+          labels: # Extra metadata attached to the alert.
+            severity: {{ .Values.alerts.high5xx.severity | quote }} # Marks this warning-level incident,  critical page etc
+          annotations: # Human-readable text for the alert.
+            summary: {{ .Values.alerts.high5xx.summary | quote }}
+            description: {{ .Values.alerts.high5xx.description | quote }}
+        # 2) HighRequestLatency
+        # This rule says: “If the 95th percentile request latency stays above 500 ms for 5 minutes, alert me.”
+        # In simple terms, most requests are still okay, but the slower ones are getting too slow. 
+        # That can mean overloaded servers, slow queries, external API slowness, or insufficient resources.
+        - alert: HighRequestLatency # This alert watches for slow responses.
+          expr: |
+            histogram_quantile({{ .Values.alerts.latency.quantile }},
+              sum(rate(http_server_requests_seconds_bucket{job={{ .Values.monitoring.job | quote }}}[{{ .Values.alerts.window5m | quote }}])) by (le)
+            ) > {{ .Values.alerts.latency.threshold }}
+          for: {{ .Values.alerts.latency.for | quote }}
+          labels:
+            severity: {{ .Values.alerts.latency.severity | quote }}
+          annotations:
+            summary: {{ .Values.alerts.latency.summary | quote }}
+            description: {{ .Values.alerts.latency.description | quote }}
+        # 3) PodRestartingFrequently
+        # This rule says: “If a container restarts more than 3 times in 10 minutes and keeps doing that for 10 minutes, alert me.”
+        # In simple terms, the pod is unstable and may be crash-looping, failing health checks, or being killed because of memory issues.
+        - alert: PodRestartingFrequently # This watches for pods that are crashing or restarting too often.
+          expr: increase(kube_pod_container_status_restarts_total{namespace=~{{ .Values.monitoring.restartNamespaces | quote }}}[{{ .Values.alerts.restart.window | quote }}]) > {{ .Values.alerts.restart.threshold }}
+          for: {{ .Values.alerts.restart.for | quote }}
+          labels:
+            severity: {{ .Values.alerts.restart.severity | quote }}
+          annotations:
+            summary: {{ .Values.alerts.restart.summary | quote }}
+            description: {{ .Values.alerts.restart.description | quote }}
+        # 4) DeploymentNotAvailable
+        # This rule says: “If the deployment has fewer available replicas than desired for 10 minutes, alert me.”
+        # In simple terms, Kubernetes wanted, for example, 3 pods running, but only 2 are actually healthy and available. 
+        # That often points to failed rollouts, scheduling problems, image issues, or readiness probe failures.
+        - alert: DeploymentNotAvailable # This detects rollout or availability problems.
+          expr: kube_deployment_status_replicas_available{deployment=~{{ .Values.monitoring.deploymentRegex | quote }}} < kube_deployment_spec_replicas{deployment=~{{ .Values.monitoring.deploymentRegex | quote }}}
+          for: {{ .Values.alerts.deployment.for | quote }}
+          labels:
+            severity: {{ .Values.alerts.deployment.severity | quote }}
+          annotations:
+            summary: {{ .Values.alerts.deployment.summary | quote }}
+            description: {{ .Values.alerts.deployment.description | quote }}

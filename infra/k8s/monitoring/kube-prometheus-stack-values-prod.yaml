@@ -80,8 +80,8 @@ prometheus:
         memory: "4Gi"
 
     retention: 30d
-    scrapeInterval: "30s"
-    evaluationInterval: "30s"
+    scrapeInterval: "30s" # 30s is cost-effective; use 15s for tighter SLOs
+    evaluationInterval: "30s" # should match or be multiple of scrapeInterval
 
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
@@ -160,6 +160,16 @@ grafana:
     create: true
   pspEnabled: false
 
+  grafana.ini:
+    auth:
+      disable_login_form: false   # later: true when SSO is configured
+    users:
+      viewers_can_edit: false     # prod dashboards read-only for viewers
+    dashboards:
+      default_home_dashboard_path: /var/lib/grafana/dashboards/home.json
+    security:
+      allow_embedding: true       # consider limiting if security requires
+
   # Persist Grafana data (dashboards, user prefs)
   persistence:
     enabled: true
@@ -177,4 +187,25 @@ grafana:
       isDefault: false
       jsonData:
         maxLines: 1000
-        timeout: 60
+        timeout: 60 # seconds; useful for large log queries
+
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'infra'
+          orgId: 1
+          folder: 'infra'
+          type: file
+          options:
+            path: /var/lib/grafana/dashboards/infra
+        - name: 'myapp'
+          orgId: 1
+          folder: 'myapp'
+          type: file
+          options:
+            path: /var/lib/grafana/dashboards/myapp
+
+  dashboardsConfigMaps:
+    infra: grafana-dashboards-infra
+    myapp: grafana-dashboards-myapp

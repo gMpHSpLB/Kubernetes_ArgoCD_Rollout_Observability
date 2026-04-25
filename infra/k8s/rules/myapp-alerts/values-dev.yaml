@@ -1,0 +1,41 @@
+environment: dev
+
+monitoring:
+  restartNamespaces: "dev|myapp-dev"
+
+alerts:
+  high5xx:
+    threshold: 0.10
+    for: 5m
+    severity: warning
+
+  latency:
+    threshold: 1.5
+    for: 10m
+    severity: warning
+
+  restart:
+    window: 15m
+    threshold: 5
+    for: 15m
+    severity: warning
+
+  deployment:
+    for: 15m
+    severity: warning
+
+# In dev, you usually:
+#   - Keep SLO logic for realism, but do not page.
+#   - Either disable fast burn entirely or downgrade to warning.
+slo:
+  fast:
+    severity: warning
+    # optionally, make it less sensitive or even disable by using a huge burnFactor
+    burnFactor: 50.0
+    summary: "MyApp fast error-budget burn (dev)"
+    description: "Dev: fast SLO burn; investigate during dev time."
+
+  slow:
+    severity: warning
+    summary: "MyApp slow error-budget burn (dev)"
+    description: "Dev: slow SLO burn; useful for testing SLO pipelines."

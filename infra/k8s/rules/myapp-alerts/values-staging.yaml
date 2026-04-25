@@ -1,0 +1,36 @@
+environment: staging
+
+monitoring:
+  restartNamespaces: "staging|myapp-staging"
+
+alerts:
+  high5xx:
+    threshold: 0.05
+    for: 5m
+    severity: warning
+
+  latency:
+    threshold: 0.75
+    for: 5m
+    severity: warning
+
+  restart:
+    window: 10m
+    threshold: 3
+    for: 10m
+    severity: warning
+
+  deployment:
+    for: 10m
+    severity: critical
+
+slo:
+  fast:
+    severity: critical
+    summary: "MyApp fast error-budget burn (staging)"
+    description: "Staging: burning error budget fast; likely bad release candidate."
+
+  slow:
+    severity: warning
+    summary: "MyApp slow error-budget burn (staging)"
+    description: "Staging: slow budget burn; check before promoting to prod."

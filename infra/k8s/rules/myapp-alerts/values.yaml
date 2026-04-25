@@ -1,0 +1,68 @@
+environment: prod # Base values treat as “prod defaults”
+
+monitoring:
+  namespace: monitoring
+  release: kps
+  job: myapp
+  restartNamespaces: "prod|myapp-prod"
+  deploymentRegex: "myapp.*"
+
+groupName: "myapp.rules"
+name: "myapp-base-rules"
+
+alerts:
+  window5m: 5m
+
+  high5xx:
+    threshold: 0.03
+    for: 5m
+    severity: critical
+    summary: "High 5xx rate for myapp"
+    description: "More than 3% of requests are 5xx for 5 minutes."
+
+  latency:
+    quantile: 0.95
+    threshold: 0.5
+    for: 5m
+    severity: critical
+    summary: "High request latency for myapp"
+    description: "p95 latency > 500ms for 5 minutes."
+
+  restart:
+    window: 10m
+    threshold: 3
+    for: 10m
+    severity: warning
+    summary: "Pods are restarting frequently"
+    description: "Container restarts > 3 in 10m."
+
+  deployment:
+    for: 5m
+    severity: critical
+    summary: "Deployment not fully available"
+    description: "myapp deployment has fewer available replicas than desired."
+
+slo:
+  name: "myapp-slo-rules"
+  groupName: "myapp.slo"
+
+  # SLO: 99.9% → 0.001 error budget
+  errorBudgetFraction: 0.001
+
+  fast:
+    name: "MyAppErrorBudgetBurnFast"
+    window: 5m
+    burnFactor: 14.4        # fast burn: ~2 days to exhaust monthly budget [web:9][web:50]
+    for: 5m
+    severity: critical
+    summary: "MyApp fast error-budget burn"
+    description: "MyApp is burning error budget faster than 2% per hour (SLO 99.9%)."
+
+  slow:
+    name: "MyAppErrorBudgetBurnSlow"
+    window: 30m
+    burnFactor: 1.2         # slow burn: still unsustainable [web:9][web:50]
+    for: 1h
+    severity: warning
+    summary: "MyApp slow error-budget burn"
+    description: "MyApp is burning error budget faster than 5% per 6h (SLO 99.9%)."

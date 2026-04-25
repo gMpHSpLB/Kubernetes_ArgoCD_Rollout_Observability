@@ -1,1 +1,37 @@
 Monitoring stack: kube‑prometheus‑stack + ServiceMonitor
+
+Multi‑tenant Grafana here means structuring Grafana so that different concerns (infra vs app, dev vs staging vs prod, different teams) are separated by folders, RBAC, and dashboard sources, instead of “one big bucket of dashboards everyone can edit”.
+
+What this Grafana config does (high‑level)
+Use cases:
+
+- Separate infra vs app dashboards into different folders (infra, myapp).
+
+- Tie each folder to a filesystem path containing JSON dashboards, managed via ConfigMaps (GitOps‑friendly).
+
+- Enable RBAC and basic security settings so:
+
+    - Viewers cannot edit dashboards.
+
+    - You can later add SSO and fine‑grained roles per folder.
+
+This is “multi‑tenancy” in the sense of multiple teams / environments coexisting in one Grafana but logically isolated.
+
+Dev vs staging vs prod strategy
+Conceptually:
+
+Dev:
+    - Simpler auth, possibly local admin password.
+    - Folders still useful, but RBAC less strict; viewers can edit might be acceptable.
+    - Dashboards mostly experimental; fewer protections.
+
+Staging:
+    - Same folder structure as prod.
+    - RBAC on, viewers cannot edit.
+    - Admin password via secret.
+    - Environment‑specific ConfigMaps (staging dashboards may differ).
+
+Prod:
+    - Admin credentials only via secret.
+    - Viewers cannot edit; maybe disable login form once SSO is ready.
+    - Strict RBAC; possibly separate orgs or folders per team.

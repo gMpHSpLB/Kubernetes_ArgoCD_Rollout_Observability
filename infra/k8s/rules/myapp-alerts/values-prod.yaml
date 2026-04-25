@@ -1,0 +1,16 @@
+# If you want a dedicated prod file (instead of relying on values.yaml), you can keep it small:
+# (Everything else comes from values.yaml.)
+# Helm merges values.yaml and values-*.yaml in order, so environment files override defaults.
+environment: prod
+
+monitoring:
+  restartNamespaces: "prod|myapp-prod"
+
+slo:
+  fast:
+    severity: critical
+    summary: "MyApp fast error-budget burn (prod)"
+
+  slow:
+    severity: warning
+    summary: "MyApp slow error-budget burn (prod)"

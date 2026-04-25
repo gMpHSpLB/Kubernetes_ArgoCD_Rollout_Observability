@@ -1,0 +1,54 @@
+# These are SLO burn‑rate alerts for myapp: they watch how fast you are consuming your error budget instead of just “is error rate high right now”. They are designed for a 99.9% availability SLO (0.1% error budget) and trigger when you are burning that budget too quickly, over short and long windows.
+
+# 1. Concepts: SLO, error budget, burn rate
+# SLO (Service Level Objective): target reliability, here 99.9% of requests must be successful. Error budget = 1 − SLO = 0.1% of requests may fail.
+
+# Error budget burn rate: how fast you are spending that 0.1%. A burn rate of 1 means “spend it evenly over the whole SLO window”. Burn rate > 1 means you’ll exhaust it early.
+
+# Fast vs slow burns:
+
+# Fast: high error rate over a short window → page on‑call now.
+
+# Slow: moderate error rate over a longer window → create ticket / business‑hours response.
+
+# Your rules encode this idea directly using raw error ratio thresholds instead of explicit “burn rate” metrics, but the numbers (14.4 and 1.2) are standard burn‑rate factors for 99.9% SLO examples.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Values.slo.name | default "myapp-slo-rules" }}
+  namespace: {{ .Values.monitoring.namespace | quote }}
+  labels:
+    release: {{ .Values.monitoring.release | quote }}
+    environment: {{ .Values.environment | quote }}
+spec:
+  groups: # list of rule groups.
+    - name: {{ .Values.slo.groupName | default "myapp.slo" }} #  just a logical group name to separate SLO alerts from base alerts.
+      rules:
+        # Alert: fast burn
+        - alert: {{ .Values.slo.fast.name | default "MyAppErrorBudgetBurnFast" }}
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{job={{ .Values.monitoring.job | quote }},status=~"5.."}[{{ .Values.slo.fast.window | quote }}]))
+              /
+              sum(rate(http_server_requests_seconds_count{job={{ .Values.monitoring.job | quote }}}[{{ .Values.slo.fast.window | quote }}]))
+            ) > ({{ .Values.slo.errorBudgetFraction }} * {{ .Values.slo.fast.burnFactor }})
+          for: {{ .Values.slo.fast.for | quote }}
+          labels:
+            severity: {{ .Values.slo.fast.severity | quote }}
+          annotations:
+            summary: {{ .Values.slo.fast.summary | quote }}
+            description: {{ .Values.slo.fast.description | quote }}
+        # Alert: slow burn
+        - alert: {{ .Values.slo.slow.name | default "MyAppErrorBudgetBurnSlow" }}
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{job={{ .Values.monitoring.job | quote }},status=~"5.."}[{{ .Values.slo.slow.window | quote }}]))
+              /
+              sum(rate(http_server_requests_seconds_count{job={{ .Values.monitoring.job | quote }}}[{{ .Values.slo.slow.window | quote }}]))
+            ) > ({{ .Values.slo.errorBudgetFraction }} * {{ .Values.slo.slow.burnFactor }})
+          for: {{ .Values.slo.slow.for | quote }}
+          labels:
+            severity: {{ .Values.slo.slow.severity | quote }}
+          annotations:
+            summary: {{ .Values.slo.slow.summary | quote }}
+            description: {{ .Values.slo.slow.description | quote }}

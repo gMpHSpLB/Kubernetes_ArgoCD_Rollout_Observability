@@ -1,0 +1,31 @@
+Suggested file roles
+infra/k8s/rules/myapp/Chart.yaml: declares the Helm chart.
+
+infra/k8s/rules/myapp/templates/prometheus-rules.yaml: contains the templated PrometheusRule.
+
+infra/k8s/rules/myapp/dev/values.yaml: dev thresholds.
+
+infra/k8s/rules/myapp/staging/values.yaml: staging thresholds.
+
+infra/k8s/rules/myapp/prod/values.yaml: prod thresholds.
+
+infra/k8s/rules/myapp/base/prometheus-rules-base.yaml: optional non-templated reference or fallback, if you want to keep a plain manifest too.
+
+
+infra/
+  k8s/
+    rules/
+      myapp-alerts/
+        Chart.yaml
+        .helmignore
+        values.yaml           # base (prod-ish) defaults
+        values-dev.yaml
+        values-staging.yaml
+        values-prod.yaml
+        templates/
+          prometheus-rules.yaml
+
+You will then:
+    - Use Helm to render the PrometheusRule into plain YAML per env.
+
+    - Pipe the rendered YAML to kubectl apply

@@ -1,0 +1,7 @@
+# This is a minimal v2 chart definition; enough for Helm to work
+apiVersion: v2
+name: myapp-alerts
+description: PrometheusRule alerts for myapp (base + env-specific thresholds)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

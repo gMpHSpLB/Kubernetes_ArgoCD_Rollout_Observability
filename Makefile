@@ -622,9 +622,17 @@ K8S_KPS_RELEASE ?= kps
 K8S_LOKI_RELEASE ?= loki
 
 K8S_KPS_VALUES_DEV ?= infra/k8s/monitoring/kube-prometheus-stack-values-dev.yaml
+K8S_KPS_VALUES_STAGING ?= infra/k8s/monitoring/kube-prometheus-stack-values-staging.yaml
+K8S_KPS_VALUES_PROD ?= infra/k8s/monitoring/kube-prometheus-stack-values-prod.yaml
+
 K8S_LOKI_VALUES_DEV ?= infra/k8s/logging/loki-stack-values-dev.yaml
+K8S_LOKI_VALUES_STAGING ?= infra/k8s/logging/loki-stack-values-staging.yaml
+K8S_LOKI_VALUES_PROD    ?= infra/k8s/logging/loki-stack-values-prod.yaml
 
 K8S_RULES_DIR ?= infra/k8s/rules
+K8S_ALERTS_CHART_DIR ?= infra/k8s/rules/myapp-alerts
+K8S_ALERTS_RELEASE   ?= myapp-alerts
+K8S_ALERTS_NAMESPACE ?= monitoring
 
 # Adding Helm chart repositories so Helm can find and 
 # install charts from Prometheus and Grafana later. 
@@ -736,10 +744,6 @@ k8s-monitoring-dev: helm-add-repos ensure-minikube
 	  -n $(K8S_MONITORING_NAMESPACE) --create-namespace \
 	  -f $(K8S_KPS_VALUES_DEV)
 
-# staging/prod variants now, you can extend with:
-K8S_KPS_VALUES_STAGING ?= infra/k8s/monitoring/kube-prometheus-stack-values-staging.yaml
-K8S_KPS_VALUES_PROD ?= infra/k8s/monitoring/kube-prometheus-stack-values-prod.yaml
-
 k8s-monitoring-staging: helm-add-repos ensure-minikube
 	@echo "Installing/Upgrading kube-prometheus-stack (staging)..."
 	helm upgrade --install $(K8S_KPS_RELEASE)-staging prometheus-community/kube-prometheus-stack \
@@ -752,6 +756,77 @@ k8s-monitoring-prod: helm-add-repos ensure-minikube
 	  -n $(K8S_MONITORING_NAMESPACE) --create-namespace \
 	  -f $(K8S_KPS_VALUES_PROD)
 
+# Apply Prometheus rules (base + SLOs)
+# Because kubectl apply -f dir/ recursively applies all YAML 
+# in that directory, this will pick up new rules automatically 
+# as you add them
+# Render and apply PrometheusRule for dev
+k8s-alerts-dev:
+	@echo "Applying myapp PrometheusRule alerts for DEV..."
+	helm template $(K8S_ALERTS_RELEASE)-dev $(K8S_ALERTS_CHART_DIR) \
+	  -f $(K8S_ALERTS_CHART_DIR)/values.yaml \
+	  -f $(K8S_ALERTS_CHART_DIR)/values-dev.yaml \
+	  --namespace $(K8S_ALERTS_NAMESPACE) \
+	| kubectl apply -n $(K8S_ALERTS_NAMESPACE) -f -
+
+# Render and apply PrometheusRule for staging, base + SLO for staging
+k8s-alerts-staging:
+	@echo "Applying myapp PrometheusRule alerts for STAGING..."
+	helm template $(K8S_ALERTS_RELEASE)-staging $(K8S_ALERTS_CHART_DIR) \
+	  -f $(K8S_ALERTS_CHART_DIR)/values.yaml \
+	  -f $(K8S_ALERTS_CHART_DIR)/values-staging.yaml \
+	  --namespace $(K8S_ALERTS_NAMESPACE) \
+	| kubectl apply -n $(K8S_ALERTS_NAMESPACE) -f -
+
+# Render and apply PrometheusRule for prod, base + SLO 
+k8s-alerts-prod:
+	@echo "Applying myapp PrometheusRule alerts for PROD..."
+	helm template $(K8S_ALERTS_RELEASE)-prod $(K8S_ALERTS_CHART_DIR) \
+	  -f $(K8S_ALERTS_CHART_DIR)/values.yaml \
+	  -f $(K8S_ALERTS_CHART_DIR)/values-prod.yaml \
+	  --namespace $(K8S_ALERTS_NAMESPACE) \
+	| kubectl apply -n $(K8S_ALERTS_NAMESPACE) -f -
+
+# Convenience target to apply all env rules (if you share a cluster), base + SLO 
+k8s-alerts-all: k8s-alerts-dev k8s-alerts-staging k8s-alerts-prod
+	@echo "myapp PrometheusRule alerts applied for dev, staging, and prod."
+
+# You can add k8s-alerts-diff-* targets right next to the existing k8s-alerts-* targets, reusing the same variables. They will run helm template and pipe the result into kubectl diff -f - so you see what would change without applying it
+# Show what would change for DEV alerts, without applying
+# shows diff including SLO rules
+k8s-alerts-diff-dev:
+	@echo "Diffing myapp PrometheusRule alerts for DEV (no changes applied)..."
+	helm template $(K8S_ALERTS_RELEASE)-dev $(K8S_ALERTS_CHART_DIR) \
+	  -f $(K8S_ALERTS_CHART_DIR)/values.yaml \
+	  -f $(K8S_ALERTS_CHART_DIR)/values-dev.yaml \
+	  --namespace $(K8S_ALERTS_NAMESPACE) \
+	| kubectl diff -n $(K8S_ALERTS_NAMESPACE) -f -
+
+# Show what would change for STAGING alerts, without applying
+# shows diff including SLO rules
+k8s-alerts-diff-staging:
+	@echo "Diffing myapp PrometheusRule alerts for STAGING (no changes applied)..."
+	helm template $(K8S_ALERTS_RELEASE)-staging $(K8S_ALERTS_CHART_DIR) \
+	  -f $(K8S_ALERTS_CHART_DIR)/values.yaml \
+	  -f $(K8S_ALERTS_CHART_DIR)/values-staging.yaml \
+	  --namespace $(K8S_ALERTS_NAMESPACE) \
+	| kubectl diff -n $(K8S_ALERTS_NAMESPACE) -f -
+
+# Show what would change for PROD alerts, without applying
+# shows diff including SLO rules
+k8s-alerts-diff-prod:
+	@echo "Diffing myapp PrometheusRule alerts for PROD (no changes applied)..."
+	helm template $(K8S_ALERTS_RELEASE)-prod $(K8S_ALERTS_CHART_DIR) \
+	  -f $(K8S_ALERTS_CHART_DIR)/values.yaml \
+	  -f $(K8S_ALERTS_CHART_DIR)/values-prod.yaml \
+	  --namespace $(K8S_ALERTS_NAMESPACE) \
+	| kubectl diff -n $(K8S_ALERTS_NAMESPACE) -f -
+
+# Convenience: run diffs for all envs
+# shows diff including SLO rules
+k8s-alerts-diff-all: k8s-alerts-diff-dev k8s-alerts-diff-staging k8s-alerts-diff-prod
+	@echo "Diff for myapp PrometheusRule alerts completed for dev, staging, and prod."
+
 # Install/upgrade Loki stack (Loki + Promtail) in dev
 k8s-logging-dev: helm-add-repos ensure-minikube
 	@echo "Installing/Upgrading Loki stack (dev) in namespace $(K8S_LOGGING_NAMESPACE)..."
@@ -759,27 +834,62 @@ k8s-logging-dev: helm-add-repos ensure-minikube
 	  -n $(K8S_LOGGING_NAMESPACE) --create-namespace \
 	  -f $(K8S_LOKI_VALUES_DEV)
 
-k8s-logging-staging: helm-add-repos ensure-minikube
+#STAGING
+# AWS creds for Loki S3 must be provided via environment:
+# AWS_ACCESS_KEY_ID_STAGING=... AWS_SECRET_ACCESS_KEY_STAGING=... make k8s-logging-prod
+k8s-logging-staging-secrets:
+	@test -n "$(AWS_ACCESS_KEY_ID_STAGING)" || { echo "AWS_ACCESS_KEY_ID_STAGING not set"; exit 1; }
+	@test -n "$(AWS_SECRET_ACCESS_KEY_STAGING)" || { echo "AWS_SECRET_ACCESS_KEY_STAGING not set"; exit 1; }
+	@echo "Creating/updating loki-s3-credentials-staging secret in namespace $(K8S_LOGGING_NAMESPACE)..."
+	kubectl delete secret loki-s3-credentials-staging \
+	  -n $(K8S_LOGGING_NAMESPACE) --ignore-not-found >/dev/null 2>&1 || true
+	kubectl create secret generic loki-s3-credentials-staging \
+	  -n $(K8S_LOGGING_NAMESPACE) \
+	  --from-literal=AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID_STAGING)" \
+	  --from-literal=AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY_STAGING)"
+
+# export AWS_ACCESS_KEY_ID_STAGING=staging-key
+# export AWS_SECRET_ACCESS_KEY_STAGING=staging-secret
+k8s-logging-staging: helm-add-repos ensure-minikube k8s-logging-staging-secrets
 	@echo "Installing/Upgrading Loki stack (staging) in namespace $(K8S_LOGGING_NAMESPACE)..."
-	helm upgrade --install $(K8S_LOKI_RELEASE) grafana/loki-stack \
+	helm upgrade --install $(K8S_LOKI_RELEASE)-staging grafana/loki-stack \
 	  -n $(K8S_LOGGING_NAMESPACE) --create-namespace \
 	  -f $(K8S_LOKI_VALUES_STAGING)
 
-k8s-logging-prod: helm-add-repos ensure-minikube
+#PROD
+k8s-logging-prod-secrets:
+	@test -n "$(AWS_ACCESS_KEY_ID)" || { echo "AWS_ACCESS_KEY_ID not set"; exit 1; }
+	@test -n "$(AWS_SECRET_ACCESS_KEY)" || { echo "AWS_SECRET_ACCESS_KEY not set"; exit 1; }
+	@echo "Creating/updating loki-s3-credentials-prod secret in namespace $(K8S_LOGGING_NAMESPACE)..."
+	kubectl delete secret loki-s3-credentials-prod \
+	  -n $(K8S_LOGGING_NAMESPACE) --ignore-not-found >/dev/null 2>&1 || true
+	kubectl create secret generic loki-s3-credentials-prod \
+	  -n $(K8S_LOGGING_NAMESPACE) \
+	  --from-literal=AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	  --from-literal=AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)"
+
+# export key values before calling make k8s-logging-prod
+# export AWS_ACCESS_KEY_ID=xxxx
+# export AWS_SECRET_ACCESS_KEY=yyyy
+# # Deploy prod Loki (S3-backed) into the current cluster
+# make k8s-logging-prod
+k8s-logging-prod: helm-add-repos ensure-minikube k8s-logging-prod-secrets
 	@echo "Installing/Upgrading Loki stack (prod) in namespace $(K8S_LOGGING_NAMESPACE)..."
-	helm upgrade --install $(K8S_LOKI_RELEASE) grafana/loki-stack \
+	helm upgrade --install $(K8S_LOKI_RELEASE)-prod grafana/loki-stack \
 	  -n $(K8S_LOGGING_NAMESPACE) --create-namespace \
 	  -f $(K8S_LOKI_VALUES_PROD)
 
-# Apply Prometheus rules (base + SLOs)
-# You already plan infra/k8s/rules/prometheus-rules-base.yaml and infra/k8s/rules/slo-rules-myapp.yaml. Wrap that as:
-# Apply all PrometheusRule manifests (base rules, SLOs, etc.)
-# Because kubectl apply -f dir/ recursively applies all YAML 
-# in that directory, this will pick up new rules automatically 
-# as you add them
-k8s-rules-apply:
-	@echo "Applying PrometheusRule resources from $(K8S_RULES_DIR)..."
-	kubectl apply -f $(K8S_RULES_DIR)
+# Deploy Loki logging stack for all envs (dev + staging + prod) in current cluster.
+# Requires:
+#   - dev: uses K8S_LOKI_VALUES_DEV (typically filesystem or simple storage)
+#   - staging: AWS_ACCESS_KEY_ID_STAGING / AWS_SECRET_ACCESS_KEY_STAGING
+#   - prod: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+# export AWS_ACCESS_KEY_ID_STAGING=staging-key
+# export AWS_SECRET_ACCESS_KEY_STAGING=staging-secret
+# export AWS_ACCESS_KEY_ID=prod-key
+# export AWS_SECRET_ACCESS_KEY=prod-secret
+k8s-logging-all: k8s-logging-dev k8s-logging-staging k8s-logging-prod
+	@echo "Loki logging stacks deployed for dev, staging, and prod."
 
 # Finally, define a single target to bring up the entire observability 
 # stack in whatever cluster your current kube‑context points at:
@@ -787,5 +897,21 @@ k8s-rules-apply:
 # - kube-prometheus-stack (Prometheus, Alertmanager, Grafana)
 # - Loki + Promtail
 # - PrometheusRule files (base + SLOs)
-k8s-observability-dev: k8s-monitoring-dev k8s-logging-dev k8s-rules-apply
+k8s-observability-dev: k8s-monitoring-dev k8s-logging-dev k8s-alerts-dev
 	@echo "K8s observability stack (dev) deployed."
+
+k8s-observability-staging: k8s-monitoring-staging k8s-logging-staging k8s-alerts-staging
+	@echo "K8s observability stack (staging) deployed."
+
+k8s-observability-prod: k8s-monitoring-prod k8s-logging-prod k8s-alerts-prod
+	@echo "K8s observability stack (prod) deployed."
+
+# Full observability stack (monitoring + logging) for all envs:
+# - kube-prometheus-stack: dev, staging, prod
+# - Loki + Promtail: dev, staging, prod
+#
+# Requires:
+#   AWS_ACCESS_KEY_ID_STAGING / AWS_SECRET_ACCESS_KEY_STAGING for staging Loki
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY for prod Loki
+k8s-observability-all: k8s-observability-dev k8s-observability-staging k8s-observability-prod
+	@echo "K8s observability stack deployed for dev, staging, and prod."

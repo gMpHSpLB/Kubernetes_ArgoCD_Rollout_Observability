@@ -11,19 +11,20 @@ loki:
   commonConfig:
     replication_factor: 3  # Run at least 3 replicas for HA.
 
+  # S3-backed storage; secrets via env vars (see extraEnv below)
   storage:
     type: s3  # Use object storage for durability and scale.
     bucketNames:
-      chunks: my-loki-chunks  # Separate bucket names are preferred in production.
-      ruler: my-loki-ruler
-      admin: my-loki-admin
+      chunks: my-loki-chunks-prod  # Separate bucket names are preferred in production.
+      ruler: my-loki-ruler-prod
+      admin: my-loki-admin-prod
     s3:
       region: us-east-1  # Region of the bucket.
       endpoint: s3.amazonaws.com  # AWS endpoint; use your provider endpoint for GCS-compatible/S3-compatible stores.
       s3ForcePathStyle: false  # AWS S3 usually uses virtual-hosted style.
       insecure: false  # Keep TLS on.
-      accessKeyId: ""  # Prefer IRSA/Workload Identity or env injection; do not hardcode secrets here.
-      secretAccessKey: ""  # Prefer secrets/external secrets instead.
+      accessKeyId: "${AWS_ACCESS_KEY_ID}"  # Prefer IRSA/Workload Identity or env injection; do not hardcode secrets here.
+      secretAccessKey: "${AWS_SECRET_ACCESS_KEY}"  # Prefer secrets/external secrets instead.
       signatureVersion: v4  # Standard for AWS S3.
 
   schemaConfig:
@@ -33,7 +34,7 @@ loki:
         object_store: s3  # Use S3/GCS-backed object storage.
         schema: v13  # Recommended newer schema.
         index:
-          prefix: loki_index_  # Index prefix for TSDB schema.
+          prefix: loki_index_prod_  # Index prefix for TSDB schema.
           period: 24h  # Daily index rotation.
 
   storage_config:
@@ -50,6 +51,27 @@ loki:
     retention_period: 30d  # Example production retention; tune to your needs.
     allow_structured_metadata: true  # Useful for modern logging pipelines.
     volume_enabled: true  # Enable log volume queries if you use them.
+
+  # Enable env expansion in Loki config
+  extraArgs:
+    - -config.expand-env=true
+
+  # Your Loki values file should reference the secret through environment variables, not plaintext values. 
+  # The pod gets the env vars from the Secret, and Loki expands them at runtime
+  # Inject AWS creds from the Kubernetes Secret as env vars
+  # extraEnv reads from loki-s3-credentials Secret, and Loki 
+  # expands ${AWS_ACCESS_KEY_ID} and ${AWS_SECRET_ACCESS_KEY} at startup
+  extraEnv:
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: loki-s3-credentials-prod
+          key: AWS_ACCESS_KEY_ID
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: loki-s3-credentials-prod
+          key: AWS_SECRET_ACCESS_KEY
 
   ruler:
     storage:
