@@ -1,0 +1,22 @@
+name: Grafana dashboards check
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+    tags:
+      - "v*" # trigger only on version tags
+
+jobs:
+  validate-dashboards:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure checker script is executable
+        run: chmod +x hack/check-grafana-dashboards-classic.sh
+
+      - name: Validate Grafana dashboards are classic JSON
+        run: hack/check-grafana-dashboards-classic.sh
