@@ -54,6 +54,22 @@ permissions: #Add permissions in workflow. Make sure to Enable package permissio
 env:
   REGISTRY: ghcr.io
 
+# | Component       | Env     | Release name (Helm) | Namespace  | Service used in checks                            |
+# | --------------- | ------- | ------------------- | ---------- | ------------------------------------------------- |
+# | kube-prometheus | dev     | kps                 | monitoring | kps-kube-prometheus-stack-prometheus, kps-grafana |
+# | kube-prometheus | staging | kps-staging         | monitoring | same services (chart naming)                      |
+# | kube-prometheus | prod    | kps-prod            | monitoring | same services                                     |
+# | Loki stack      | dev     | loki                | logging    | pods: app.kubernetes.io/name=loki                 |
+# | Loki stack      | staging | loki-staging        | logging    | same label                                        |
+# | Loki stack      | prod    | loki-prod           | logging    | same label                                        |
+# All of that is aligned with your Makefile variables 
+# (K8S_KPS_RELEASE=kps, K8S_LOKI_RELEASE=loki).
+# 
+# If you later change release names or split monitoring 
+# per env into separate clusters, you’ll only need to 
+# adjust these service names and labels; the rest of the 
+# CI logic can stay identical.
+
 jobs:
   # You will split your pipeline into 3 logical stages(dev,staging/prod) but CI job will run always
   # CI job (always runs)
@@ -226,6 +242,27 @@ jobs:
         run: |
           make k8s-test-db 
 
+      - name: Install kubectl and helm
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
+      - uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Install Minikube
+        run: |
+          curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          chmod +x minikube
+          sudo mv minikube /usr/local/bin/
+
+      - name: K8s observability test (Minikube)
+        run: |
+          set -euo pipefail
+          minikube start --driver=docker
+          make k8s-test-observability    # now includes infra observability checks
+          minikube delete
+
       - name: Clean all
         run: |
           make clean
@@ -364,6 +401,28 @@ jobs:
             ENV_VALUES="environments/dev/values-mylearning.yaml"
             MYLEARNING_IMAGE=${{ needs.ci.outputs.image_mylearning_dev }}
 
+      - name: Install kubectl and helm
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
+      - uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      # Safety: preview alert and dashboard changes before apply
+      - name: Diff dev alerts
+        run: |
+          make k8s-alerts-diff-dev
+
+      - name: Diff dev Grafana dashboards
+        run: |
+          make k8s-grafana-dashboards-diff-dev
+
+      - name: K8s dev smoke (deploy + observability)
+        run: |
+          make k8s-smoke-dev
+          make k8s-observability-infra-check   # infra shared, but invoked here too
+
       - name: Tear down dev stack
         env:
           IMAGE_MYAPP: ${{ needs.ci.outputs.image_myapp_dev }}
@@ -473,6 +532,28 @@ jobs:
             ENV_VALUES="environments/staging/values-mylearning.yaml"
             MYLEARNING_IMAGE=${{ needs.ci.outputs.image_mylearning_staging }}
 
+      - name: Install kubectl and helm
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
+      - uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      # Safety: preview staging alert and dashboard changes before apply
+      - name: Diff staging alerts
+        run: |
+          make k8s-alerts-diff-staging
+
+      - name: Diff staging Grafana dashboards
+        run: |
+          make k8s-grafana-dashboards-diff-staging
+
+      - name: K8s staging smoke (deploy + observability)
+        run: |
+          make k8s-smoke-staging
+          make k8s-observability-infra-check   # infra shared, but invoked here too
+
       - name: Tear down staging stack
         env:
           IMAGE_MYAPP: ${{ needs.ci.outputs.image_myapp_staging }}
@@ -564,6 +645,41 @@ jobs:
             CHART_NAME="mylearning-prod" \
             ENV_VALUES="environments/prod/values-mylearning.yaml"
             MYLEARNING_IMAGE=${{ needs.ci.outputs.image_mylearning_prod }}
+
+      - name: Install kubectl and helm
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
+      - uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      # Ensure AWS creds for prod Loki are present
+      - name: Validate prod Loki AWS creds
+        env:
+          AWSACCESSKEYID: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          AWSSECRETACCESSKEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+        run: |
+          : "${AWSACCESSKEYID:?AWSACCESSKEYID is required}"
+          : "${AWSSECRETACCESSKEY:?AWSSECRETACCESSKEY is required}"
+          echo "Prod Loki AWS credentials OK."
+
+      # Safety: preview prod alert and dashboard changes before apply
+      - name: Diff prod alerts
+        run: |
+          make k8s-alerts-diff-prod
+
+      - name: Diff prod Grafana dashboards
+        run: |
+          make k8s-grafana-dashboards-diff-prod
+
+      - name: K8s prod smoke (deploy + observability)
+        env:
+          AWSACCESSKEYID: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          AWSSECRETACCESSKEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+        run: |
+          make k8s-smoke-prod
+          make k8s-observability-infra-check   # infra shared, but invoked here too
 
   #Deploy to real Production Server
   #What this does:

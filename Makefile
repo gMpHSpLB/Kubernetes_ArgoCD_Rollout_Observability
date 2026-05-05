@@ -45,10 +45,30 @@ OTEL_TRACES_SAMPLER ?= always_on
 DISABLE_CUSTOM_MIDDLEWARE ?= false
 
 # Kubernetes directories
+K8S_ENV_DIR				?= environments
 K8S_NAMESPACE_DIR       ?= infra/k8s/namespaces
 K8S_MONITORING_DIR      ?= infra/k8s/monitoring
 K8S_NETWORKPOLICY_DIR   ?= $(K8S_MONITORING_DIR)/networkpolicies
 K8S_RULES_DIR           ?= infra/k8s/rules
+
+# ---------- KUBECONFIG / CONTEXTS PER ENV ----------
+# Use the same local Minikube context for all environments for now.
+# When you later add real staging/prod clusters, change only STAGING/PROD values.
+K8S_CONTEXT_DEV     ?= minikube   # Dev app environment on local Minikube
+K8S_CONTEXT_STAGING ?= minikube   # Staging app environment on local Minikube
+K8S_CONTEXT_PROD    ?= minikube   # Prod app environment on local Minikube
+
+# ---------- APP NAMESPACES PER ENV ----------
+# These match infra/k8s/namespaces/myapp-namespaces.yaml.
+K8S_APP_NAMESPACE_DEV     ?= myapp-dev      # Namespace for dev myapp workloads
+K8S_APP_NAMESPACE_STAGING ?= myapp-staging  # Namespace for staging myapp workloads
+K8S_APP_NAMESPACE_PROD    ?= myapp-prod     # Namespace for prod myapp workloads
+
+# ---------- HELM RELEASE NAMES PER ENV ----------
+# Keep releases separate so dev/staging/prod can be managed independently.
+K8S_MYAPP_RELEASE_DEV     ?= myapp-dev      # Helm release name for dev myapp
+K8S_MYAPP_RELEASE_STAGING ?= myapp-staging  # Helm release name for staging myapp
+K8S_MYAPP_RELEASE_PROD    ?= myapp-prod     # Helm release name for prod myapp
 
 # Monitoring / logging namespaces
 K8S_MONITORING_NAMESPACE ?= monitoring
@@ -487,6 +507,7 @@ k8s-namespace-myapp-local:
 	@echo "Applying myapp-local namespace..."
 	kubectl apply -f $(K8S_NAMESPACE_DIR)/myapp-local.yaml
 
+# Keep your namespace application target, but make it explicit
 k8s-namespaces-myapp:
 	@echo "Applying myapp dev/staging/prod namespaces with PSA labels..."
 	kubectl apply -f $(K8S_NAMESPACE_DIR)/myapp-namespaces.yaml
@@ -758,6 +779,9 @@ k8s-test-observability:
 	@echo "=== Step 4: Applying dev Grafana dashboards and alert rules ==="
 	$(MAKE) k8s-grafana-dashboards-dev
 	$(MAKE) k8s-alerts-dev
+	@echo "=== Step 5: Running infra observability health checks (Prometheus/Grafana/Loki) ==="
+	$(MAKE) k8s-observability-infra-check
+	@echo "=== Done. You can also run k8s-observability-check-dev for app-level signals. ==="
 	@echo "=== Done. Now on different terminal you can port-forward Prometheus and Grafana using: ==="
 	@echo "  make k8s-port-forward-prometheus"
 	@echo "  make k8s-port-forward-grafana"
@@ -781,24 +805,24 @@ k8-deploy-myapp:
 k8-deploy-myapp-dev:
 	@echo "Deploying myapp to myapp-dev namespace..."
 	CHART_NAME=myapp-dev \
-	K8S_NAMESPACE=myapp-dev \
-	ENV_VALUES=charts/myapp/values-dev.yaml \
+	K8S_NAMESPACE=$(K8S_APP_NAMESPACE_DEV) \
+	ENV_VALUES=$(K8S_ENV_DIR)/dev/values-myapp.yaml \
 	MYAPP_IMAGE=$(MYAPP_IMAGE_DEV) \
 	$(MAKE) k8-deploy-myapp
 
 k8-deploy-myapp-staging:
 	@echo "Deploying myapp to myapp-staging namespace..."
 	CHART_NAME=myapp-staging \
-	K8S_NAMESPACE=myapp-staging \
-	ENV_VALUES=charts/myapp/values-staging.yaml \
+	K8S_NAMESPACE=$(K8S_APP_NAMESPACE_STAGGING) \
+	ENV_VALUES=$(K8S_ENV_DIR)/stagging/values-myapp.yaml \
 	MYAPP_IMAGE=$(MYAPP_IMAGE_STAGING) \
 	$(MAKE) k8-deploy-myapp
 
 k8-deploy-myapp-prod:
 	@echo "Deploying myapp to myapp-prod namespace..."
 	CHART_NAME=myapp-prod \
-	K8S_NAMESPACE=myapp-prod \
-	ENV_VALUES=charts/myapp/values-prod.yaml \
+	K8S_NAMESPACE=$(K8S_APP_NAMESPACE_PROD) \
+	ENV_VALUES=$(K8S_ENV_DIR)/prod/values-myapp.yaml \
 	MYAPP_IMAGE=$(MYAPP_IMAGE_PROD) \
 	$(MAKE) k8-deploy-myapp
 
@@ -887,6 +911,34 @@ helm-add-repos:
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 	helm repo add grafana https://grafana.github.io/helm-charts
 	helm repo update
+
+# ---------- REUSABLE OBSERVABILITY HELPERS ----------
+# These helpers keep the Makefile DRY and make the checks 
+# consistent across environments
+#
+# Fail fast if a context does not exist in the local kubeconfig.
+define check-k8s-context
+	@kubectl config get-contexts -o name | grep -qx "$(1)" || \
+		{ echo "Missing kubectl context: $(1)"; exit 1; }
+endef
+
+# Fail fast if a namespace is not present.
+define check-k8s-namespace
+	@kubectl get namespace "$(1)" >/dev/null 2>&1 || \
+		{ echo "Missing namespace: $(1)"; exit 1; }
+endef
+
+# Generic observability health check for one environment.
+# This checks pods, services, endpoints, metrics, and recent logs.
+define k8s_observability_check
+	@echo "=== Observability check for $(1) ==="
+	@kubectl --context "$(2)" get pods -n "$(3)" -o wide
+	@kubectl --context "$(2)" get svc -n "$(3)"
+	@kubectl --context "$(2)" get endpoints -n "$(3)" || true
+	@kubectl --context "$(2)" top pods -n "$(3)" || true
+	@kubectl --context "$(2)" logs -n "$(3)" deploy/"$(4)" --tail=50 || true
+endef
+
 
 # A Helm-based installation target for deploying the kube-prometheus-stack 
 # chart into a Kubernetes cluster, usually for a development or local 
@@ -1182,6 +1234,81 @@ k8s-logging-prod: helm-add-repos ensure-minikube k8s-logging-prod-secrets
 k8s-logging-all: k8s-logging-dev k8s-logging-staging k8s-logging-prod
 	@echo "Loki logging stacks deployed for dev, staging, and prod."
 
+# ---------- APP OBSERVABILITY CHECKS PER ENV ----------
+# Add env-specific deploy/observability targets
+# verify workload readiness and inspect runtime signals in each namespace.
+# DEV: run checks against the dev namespace in Minikube.
+k8s-observability-check-dev:
+	$(call check-k8s-context,$(K8S_CONTEXT_DEV))
+	$(call check-k8s-namespace,$(K8S_APP_NAMESPACE_DEV))
+	$(call k8s_observability_check,DEV,$(K8S_CONTEXT_DEV),$(K8S_APP_NAMESPACE_DEV),$(K8S_MYAPP_RELEASE_DEV))
+
+# STAGING: run checks against the staging namespace in Minikube for now.
+k8s-observability-check-staging:
+	$(call check-k8s-context,$(K8S_CONTEXT_STAGING))
+	$(call check-k8s-namespace,$(K8S_APP_NAMESPACE_STAGING))
+	$(call k8s_observability_check,STAGING,$(K8S_CONTEXT_STAGING),$(K8S_APP_NAMESPACE_STAGING),$(K8S_MYAPP_RELEASE_STAGING))
+
+# PROD: run checks against the prod namespace in Minikube for now.
+k8s-observability-check-prod:
+	$(call check-k8s-context,$(K8S_CONTEXT_PROD))
+	$(call check-k8s-namespace,$(K8S_APP_NAMESPACE_PROD))
+	$(call k8s_observability_check,PROD,$(K8S_CONTEXT_PROD),$(K8S_APP_NAMESPACE_PROD),$(K8S_MYAPP_RELEASE_PROD))
+
+# ---------- APP OBSERVABILITY CHECKS (ALL ENVIRONMENTS) ----------
+# Add an aggregate target
+k8s-observability-check-all: k8s-observability-check-dev k8s-observability-check-staging k8s-observability-check-prod
+	@echo "Observability checks completed for dev, staging, and prod."
+
+
+# ---------- INFRA OBSERVABILITY CHECKS (Prometheus / Grafana / Loki) ----------
+#Right now, all three envs (dev/staging/prod) are on the same Minikube cluster, sharing:
+#	- monitoring namespace
+#	- logging namespace
+# 	- same Prometheus/Grafana/Loki releases, just with -staging / -prod suffixes for some Helm releases, but same namespace.
+# Infra-level observability checks (Prometheus/Grafana/Loki)
+# This encapsulates the kubectl get/wait/port-forward + curl checks you had in ci.yml.
+k8s-observability-infra-check: ## Verify monitoring/logging stack health in Minikube
+	@echo "Checking observability components in Minikube..."
+
+	# Check pods in monitoring and logging namespaces.
+	kubectl -n $(K8S_MONITORING_NAMESPACE) get pods
+	kubectl -n $(K8S_LOGGING_NAMESPACE) get pods
+
+	@echo "Checking if Grafana is already Available..."
+	# Fast-path: if Grafana is already Available, skip long waits.
+	if kubectl -n $(K8S_MONITORING_NAMESPACE) get deploy -l app.kubernetes.io/name=grafana \
+		-o jsonpath='{.items[0].status.conditions[?(@.type=="Available")].status}' 2>/dev/null | grep -q True; then \
+		echo "Grafana already Available – skipping full wait."; \
+	else \
+		echo "Waiting for Grafana to become Available..."; \
+		kubectl -n $(K8S_MONITORING_NAMESPACE) wait --for=condition=available --timeout=120s deploy -l app.kubernetes.io/name=grafana; \
+	fi
+
+	# Check Loki pods.
+	kubectl -n $(K8S_LOGGING_NAMESPACE) get pods -l app.kubernetes.io/name=loki
+
+	# Check that PrometheusRules and ServiceMonitors exist.
+	kubectl -n $(K8S_MONITORING_NAMESPACE) get prometheusrules
+	kubectl -n $(K8S_MONITORING_NAMESPACE) get servicemonitors
+
+	# Quick HTTP checks to Prometheus and Grafana via port-forward.
+	@echo "Port-forwarding Prometheus on 9091..."
+	kubectl -n $(K8S_MONITORING_NAMESPACE) port-forward svc/$(K8S_KPS_RELEASE)-kube-prometheus-stack-prometheus 9091:9090 >/tmp/pf-prom.log 2>&1 & \
+	PF_PROM=$$!; \
+	sleep 5; \
+	curl -sf http://127.0.0.1:9091/-/ready; \
+	kill $$PF_PROM || true
+
+	@echo "Port-forwarding Grafana on 3001..."
+	kubectl -n $(K8S_MONITORING_NAMESPACE) port-forward svc/$(K8S_KPS_RELEASE)-grafana 3001:80 >/tmp/pf-graf.log 2>&1 & \
+	PF_GRAF=$$!; \
+	sleep 5; \
+	curl -sf http://127.0.0.1:3001/login; \
+	kill $$PF_GRAF || true
+
+	@echo "Minikube observability stack looks healthy."
+
 # Finally, define a single target to bring up the entire observability 
 # stack in whatever cluster your current kube‑context points at:
 # Full observability stack for DEV in current cluster:
@@ -1208,6 +1335,31 @@ k8s-observability-prod: k8s-monitoring-prod k8s-logging-prod k8s-alerts-prod k8s
 #   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY for prod Loki
 k8s-observability-all: k8s-observability-dev k8s-observability-staging k8s-observability-prod
 	@echo "K8s observability stack deployed for dev, staging, and prod."
+
+
+# ---------- END-TO-END APP + OBSERVABILITY SMOKE PER ENV ----------
+# Dev: deploy myapp to myapp-dev and then run observability checks.
+# what each dependency does:
+# 	k8-deploy-myapp-* → deploy app (GHCR image + Helm) into 
+#						myapp-<env> namespace (you already have these).
+# 	k8s-observability-* → install/upgrade observability stack 
+#						(monitoring, logging, dashboards, alerts, netpol) for that env.
+# 	k8s-observability-check-* → run runtime checks 
+#						(pods, services, metrics, logs) in that env.
+k8s-smoke-dev: ensure-minikube k8-deploy-myapp-dev k8s-observability-dev k8s-observability-check-dev ## Deploy + observability smoke for DEV
+	@echo "End-to-end DEV smoke (app deploy + observability) completed."
+
+# Staging: deploy myapp to myapp-staging and then run observability checks.
+k8s-smoke-staging: ensure-minikube k8-deploy-myapp-staging k8s-observability-staging k8s-observability-check-staging ## Deploy + observability smoke for STAGING
+	@echo "End-to-end STAGING smoke (app deploy + observability) completed."
+
+# Prod: deploy myapp to myapp-prod and then run observability checks.
+k8s-smoke-prod: ensure-minikube k8-deploy-myapp-prod k8s-observability-prod k8s-observability-check-prod ## Deploy + observability smoke for PROD
+	@echo "End-to-end PROD smoke (app deploy + observability) completed."
+
+# Convenience target to run dev/staging/prod smokes in sequence (local minikube).
+k8s-smoke-all: k8s-smoke-dev k8s-smoke-staging k8s-smoke-prod ## Deploy + observability smoke for all envs
+	@echo "End-to-end smoke completed for dev, staging, and prod."
 
 
 .PHONY: k8s-clean-minikube k8s-clean-namespaces k8s-clean-pvcs
