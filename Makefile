@@ -775,15 +775,31 @@ k8s-test-db: deploy-minikube-db deploy-minikube-local
 	echo "Stopping port-forwards..."; \
 	kill $$PF_APP_PID $$PF_DB_PID || true
 
-.PHONY: k8s-port-forward-prometheus k8s-port-forward-grafana
-# Port-forward helpers for Prometheus and Grafana
-k8s-port-forward-prometheus:
-	@echo "Port-forwarding Prometheus (kube-prometheus-stack) to http://localhost:9091 ..."
-	kubectl port-forward -n $(K8S_MONITORING_NAMESPACE) svc/$(K8S_KPS_RELEASE)-kube-prometheus-stack-prometheus 9091:9090
+.PHONY: k8s-port-forward-prometheus-dev k8s-port-forward-prometheus-staging
+k8s-port-forward-prometheus-dev:
+	@echo "Port-forwarding DEV Prometheus (kube-prometheus-stack) to http://localhost:9091 ..."
+	kubectl -n $(K8S_MONITORING_NAMESPACE) port-forward svc/$(K8S_KPS_RELEASE)-kube-prometheus-stack-prometheus 9091:9090
 
-k8s-port-forward-grafana:
-	@echo "Port-forwarding Grafana (kube-prometheus-stack) to http://localhost:3001 ..."
-	kubectl port-forward -n $(K8S_MONITORING_NAMESPACE) svc/$(K8S_KPS_RELEASE)-grafana 3001:80
+k8s-port-forward-prometheus-staging:
+	@echo "Port-forwarding STAGING Prometheus (kube-prometheus-stack) to http://localhost:9092 ..."
+	kubectl -n $(K8S_MONITORING_NAMESPACE) port-forward svc/$(K8S_KPS_RELEASE)-staging-kube-prometheu-prometheus 9092:9090
+
+k8s-port-forward-prometheus-prod:
+	@echo "Port-forwarding PROD Prometheus (kube-prometheus-stack) to http://localhost:9093 ..."
+	kubectl -n $(K8S_MONITORING_NAMESPACE) port-forward svc/$(K8S_KPS_RELEASE)-prod-kube-prometheus-s-prometheus 9093:9090
+
+.PHONY: k8s-port-forward-grafana-dev k8s-port-forward-grafana-staging k8s-port-forward-grafana-prod
+k8s-port-forward-grafana-dev:
+	@echo "Port-forwarding DEV Grafana (kube-prometheus-stack) to http://localhost:3001 ..."
+	kubectl -n $(K8S_MONITORING_NAMESPACE) port-forward svc/$(K8S_KPS_RELEASE)-grafana 3001:80
+
+k8s-port-forward-grafana-staging:
+	@echo "Port-forwarding STAGING Grafana (kube-prometheus-stack) to http://localhost:3002 ..."
+	kubectl -n $(K8S_MONITORING_NAMESPACE) port-forward svc/$(K8S_KPS_RELEASE)-staging-grafana 3002:80
+
+k8s-port-forward-grafana-prod:
+	@echo "Port-forwarding PROD Grafana (kube-prometheus-stack) to http://localhost:3003 ..."
+	kubectl -n $(K8S_MONITORING_NAMESPACE) port-forward svc/$(K8S_KPS_RELEASE)-prod-grafana 3003:80
 
 .PHONY: k8s-test-observability
 # Add k8s-test-observability target
@@ -806,8 +822,8 @@ k8s-test-observability:
 	$(MAKE) k8s-observability-infra-check
 	@echo "=== Done. You can also run k8s-observability-check-dev for app-level signals. ==="
 	@echo "=== Done. Now on different terminal you can port-forward Prometheus and Grafana using: ==="
-	@echo "  make k8s-port-forward-prometheus"
-	@echo "  make k8s-port-forward-grafana"
+	@echo "  make k8s-port-forward-prometheus-dev"
+	@echo "  make k8s-port-forward-grafana-dev"
 
 # Your deploy-minikube-dev target pulls prebuilt images from GHCR and doesn’t touch Docker env
 # Usage:
@@ -1094,6 +1110,11 @@ k8s-grafana-dashboards-dev:
 # 	  -f $(K8S_GRAFANA_DASHBOARD_CM_DIR)/grafana-dashboards-infra-staging.yaml \
 # 	  -f $(K8S_GRAFANA_DASHBOARD_CM_DIR)/grafana-dashboards-myapp-staging.yaml
 
+.PHONY: k8s-grafana-admin-secret-staging
+k8s-grafana-admin-secret-staging:
+	@echo "Applying Grafana admin secret for STAGING..."
+	kubectl apply -f $(K8S_MONITORING_DIR)/grafana-admin-secret-staging.yaml
+
 k8s-grafana-dashboards-staging:
 	@echo "Generating and applying Grafana dashboards ConfigMaps for STAGING..."
 	# Generate myapp dashboards ConfigMap
@@ -1116,6 +1137,11 @@ k8s-grafana-dashboards-staging:
 # 	kubectl apply -n $(K8S_MONITORING_NAMESPACE) \
 # 	  -f $(K8S_GRAFANA_DASHBOARD_CM_DIR)/grafana-dashboards-infra.yaml \
 # 	  -f $(K8S_GRAFANA_DASHBOARD_CM_DIR)/grafana-dashboards-myapp.yaml
+
+.PHONY: k8s-grafana-admin-secret-prod
+k8s-grafana-admin-secret-prod:
+	@echo "Applying Grafana admin secret for PROD..."
+	kubectl apply -f $(K8S_MONITORING_DIR)/grafana-admin-secret-prod.yaml
 
 k8s-grafana-dashboards-prod:
 	@echo "Generating and applying Grafana dashboards ConfigMaps for PROD..."
@@ -1432,13 +1458,33 @@ k8s-observability-infra-check: ## Verify monitoring/logging stack health in Mini
 # - Loki + Promtail
 # - PrometheusRule files (base + SLOs) + Dashboard
 # - applies NetworkPolicies.
-k8s-observability-dev: k8s-namespaces-all k8s-monitoring-dev k8s-logging-dev k8s-alerts-dev k8s-grafana-dashboards-dev k8s-netpol-dev ## Deploy full observability stack to dev cluster (namespaces, monitoring, logging, alerts, dashboards, netpol)
+k8s-observability-dev: \
+	k8s-namespaces-all \
+	k8s-monitoring-dev \
+	k8s-logging-dev \
+	k8s-alerts-dev \
+	k8s-grafana-dashboards-dev \
+	k8s-netpol-dev ## Deploy full observability stack to dev cluster (namespaces, monitoring, logging, alerts, dashboards, netpol)
 	@echo "K8s observability stack (dev) deployed  (namespaces, monitoring, logging, rules, dashboards, netpol)."
 
-k8s-observability-staging: k8s-namespaces-all k8s-monitoring-staging k8s-logging-staging k8s-alerts-staging k8s-grafana-dashboards-staging k8s-netpol-staging
+k8s-observability-staging: \
+	k8s-namespaces-all \
+	k8s-monitoring-staging \
+	k8s-logging-staging \
+	k8s-grafana-admin-secret-staging \
+	k8s-alerts-staging \
+	k8s-grafana-dashboards-staging \
+	k8s-netpol-staging
 	@echo "K8s observability stack (staging) deployed  (namespaces, monitoring, logging, rules, dashboards, netpol)."
 
-k8s-observability-prod: k8s-monitoring-prod k8s-logging-prod k8s-alerts-prod k8s-grafana-dashboards-prod k8s-netpol-prod
+k8s-observability-prod: \
+	k8s-namespaces-all \
+	k8s-monitoring-prod \
+	k8s-logging-prod \
+	k8s-grafana-admin-secret-prod \
+	k8s-alerts-prod \
+	k8s-grafana-dashboards-prod \
+	k8s-netpol-prod
 	@echo "K8s observability stack (prod) deployed  (namespaces, monitoring, logging, rules, dashboards, netpol)."
 
 # Full observability stack (monitoring + logging) for all envs:
@@ -1502,7 +1548,7 @@ build-myapp-prod-local: ## Build local dev image for myapp (used by k8s-smoke-pr
 # add --pull in the Dockerfile step.
 
 # CI / promotion use: in GitHub Actions you already have MYAPP_IMAGE=${{ needs.ci.outputs.image_myapp_dev }}; when you call make k8s-smoke-dev there, it will skip the local build and use the CI image.
-k8s-smoke-dev-local: ## Full DEV smoke (local) – build image + secret + deploy + observability
+k8s-smoke-dev-local: k8s-namespaces-myapp ## Full DEV smoke (local) – build image + secret + deploy + observability
 	@echo "Checking minikube status..."
 	$(MAKE) ensure-minikube
 
@@ -1541,7 +1587,7 @@ k8s-smoke-dev-local: ## Full DEV smoke (local) – build image + secret + deploy
 	$(MAKE) k8s-smoke-dev
 	@echo "End-to-end DEV smoke (app deploy + observability) completed."
 
-k8s-smoke-staging-local: ## Full STAGING smoke (local) – build image + secret + deploy + observability + HTTP
+k8s-smoke-staging-local: k8s-namespaces-myapp ## Full STAGING smoke (local) – build image + secret + deploy + observability + HTTP
 	@echo "Checking minikube status..."
 	$(MAKE) ensure-minikube
 
@@ -1580,7 +1626,7 @@ k8s-smoke-staging-local: ## Full STAGING smoke (local) – build image + secret 
 	$(MAKE) k8s-smoke-staging
 	@echo "End-to-end STAGING smoke (app deploy + observability + HTTP) completed."
 
-k8s-smoke-prod-local: ## Full PROD smoke (local) – build image + secret + deploy + observability + HTTP
+k8s-smoke-prod-local: k8s-namespaces-myapp ## Full PROD smoke (local) – build image + secret + deploy + observability + HTTP
 	@echo "Checking minikube status..."
 	$(MAKE) ensure-minikube
 

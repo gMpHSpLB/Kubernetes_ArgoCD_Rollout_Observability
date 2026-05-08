@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboards-infra # must match dashboardsConfigMaps.infra from infra/k8s/monitoring/kube-prometheus-stack-values-prod.yaml
+  name: grafana-dashboards-infra-prod # must match dashboardsConfigMaps.infra from infra/k8s/monitoring/kube-prometheus-stack-values-prod.yaml
   namespace: monitoring
   labels:
     grafana_dashboard: "1"

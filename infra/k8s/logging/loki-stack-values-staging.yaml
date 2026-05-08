@@ -6,86 +6,159 @@
 # mechanisms rather than plaintext values. Using separate buckets 
 # for chunks, ruler, and admin is also a cleaner production 
 # pattern than dumping everything into one bucket
+
+# loki:
+#   auth_enabled: true  # Keep auth on in production.
+#   commonConfig:
+#     replication_factor: 3  # Run at least 3 replicas for HA.
+
+#   storage:
+#     type: s3  # Use object storage for durability and scale.
+#     bucketNames:
+#       chunks: my-loki-chunks-staging  # Separate bucket names are preferred in production.
+#       ruler: my-loki-ruler-staging
+#       admin: my-loki-admin-staging
+#     s3:
+#       region: us-east-1  # Region of the bucket.
+#       endpoint: s3.amazonaws.com  # AWS endpoint; use your provider endpoint for GCS-compatible/S3-compatible stores.
+#       s3ForcePathStyle: false  # AWS S3 usually uses virtual-hosted style.
+#       insecure: false  # Keep TLS on.
+#       accessKeyId: ""  # Prefer IRSA/Workload Identity or env injection; do not hardcode secrets here.
+#       secretAccessKey: ""  # Prefer secrets/external secrets instead.
+#       signatureVersion: v4  # Standard for AWS S3.
+
+#   schemaConfig:
+#     configs:
+#       - from: "2024-04-01"  # Use a recent date for the new production schema.
+#         store: tsdb  # Preferred modern Loki store for production.
+#         object_store: s3  # Use S3/GCS-backed object storage.
+#         schema: v13  # Recommended newer schema.
+#         index:
+#           prefix: loki_index_staging_  # Index prefix for TSDB schema.
+#           period: 24h  # Daily index rotation.
+
+#   storage_config:
+#     aws:
+#       region: us-east-1  # Used by Loki internals for AWS access.
+#       s3forcepathstyle: false  # Keep consistent with S3 provider behavior.
+
+#   compactor:
+#     retention_enabled: true  # Enable retention cleanup.
+#     retention_delete_delay: 6h  # Wait before deleting expired data. shorter delay than prod, up to you
+#     retention_interval: 10m  # Run retention checks regularly.
+
+#   limits_config:
+#     retention_period: 14d  # Example production retention; tune to your needs. shorter retention for staging.
+#     allow_structured_metadata: true  # Useful for modern logging pipelines.
+#     volume_enabled: true  # Enable log volume queries if you use them.
+
+#   #extraArgs:
+#   #  config.expand-env: "true"
+#   # extraArgs:
+#   #   - -config.file=/etc/loki/loki.yaml
+
+#   extraArgs: []
+
+#   extraEnv:
+#     - name: AWS_ACCESS_KEY_ID
+#       valueFrom:
+#         secretKeyRef:
+#           name: loki-s3-credentials-staging
+#           key: AWS_ACCESS_KEY_ID
+#     - name: AWS_SECRET_ACCESS_KEY
+#       valueFrom:
+#         secretKeyRef:
+#           name: loki-s3-credentials-staging
+#           key: AWS_SECRET_ACCESS_KEY
+
+#   ruler:
+#     storage:
+#       type: s3  # Store ruler rules in S3 as well.
+#     enable_api: true  # Common in production if you use alerting rules.
+
+# promtail:
+#   enabled: true  # Keep log shipping enabled.
+#   resources:
+#     requests:
+#       cpu: "50m"  # Reasonable baseline for production.
+#       memory: "128Mi"
+#     limits:
+#       cpu: "200m"
+#       memory: "256Mi"
+#   config: # Promtail-specific runtime config
+#     clients: # Defines where Promtail sends logs
+#       - url: http://loki-staging.logging.svc:3100/loki/api/v1/push # Promtail pushes log streams to Loki’s HTTP push endpoint on port 3100. In Kubernetes, http://loki usually resolves to the Loki service name in the same namespace.      
+# # Pointing Grafana at http://loki.logging.svc:3100 can work 
+# # if Grafana is in the same cluster and namespace routing is 
+# # correct, but in production I’d usually prefer the service 
+# # DNS name that matches your actual deployment and, if applicable, 
+# # a gateway/service in front of Loki. If Grafana is installed via 
+# # kube-prometheus-stack, the datasource should also be managed 
+# # there so you don’t duplicate configuration.
+# grafana:
+#   enabled: false  # If Grafana comes from kube-prometheus-stack, disable bundled Grafana here.
+
+# Note : Uncomment above code once S3 bucket is setup
 loki:
-  auth_enabled: true  # Keep auth on in production.
-  commonConfig:
-    replication_factor: 3  # Run at least 3 replicas for HA.
+  auth_enabled: false
 
-  storage:
-    type: s3  # Use object storage for durability and scale.
-    bucketNames:
-      chunks: my-loki-chunks-staging  # Separate bucket names are preferred in production.
-      ruler: my-loki-ruler-staging
-      admin: my-loki-admin-staging
-    s3:
-      region: us-east-1  # Region of the bucket.
-      endpoint: s3.amazonaws.com  # AWS endpoint; use your provider endpoint for GCS-compatible/S3-compatible stores.
-      s3ForcePathStyle: false  # AWS S3 usually uses virtual-hosted style.
-      insecure: false  # Keep TLS on.
-      accessKeyId: ""  # Prefer IRSA/Workload Identity or env injection; do not hardcode secrets here.
-      secretAccessKey: ""  # Prefer secrets/external secrets instead.
-      signatureVersion: v4  # Standard for AWS S3.
+  persistence:
+    enabled: false
 
-  schemaConfig:
-    configs:
-      - from: "2024-04-01"  # Use a recent date for the new production schema.
-        store: tsdb  # Preferred modern Loki store for production.
-        object_store: s3  # Use S3/GCS-backed object storage.
-        schema: v13  # Recommended newer schema.
-        index:
-          prefix: loki_index_staging_  # Index prefix for TSDB schema.
-          period: 24h  # Daily index rotation.
-
-  storage_config:
-    aws:
-      region: us-east-1  # Used by Loki internals for AWS access.
-      s3forcepathstyle: false  # Keep consistent with S3 provider behavior.
-
-  compactor:
-    retention_enabled: true  # Enable retention cleanup.
-    retention_delete_delay: 6h  # Wait before deleting expired data. shorter delay than prod, up to you
-    retention_interval: 10m  # Run retention checks regularly.
-
-  limits_config:
-    retention_period: 14d  # Example production retention; tune to your needs. shorter retention for staging.
-    allow_structured_metadata: true  # Useful for modern logging pipelines.
-    volume_enabled: true  # Enable log volume queries if you use them.
-
-  extraArgs:
-    - -config.expand-env=true
-
-  extraEnv:
-    - name: AWS_ACCESS_KEY_ID
-      valueFrom:
-        secretKeyRef:
-          name: loki-s3-credentials-staging
-          key: AWS_ACCESS_KEY_ID
-    - name: AWS_SECRET_ACCESS_KEY
-      valueFrom:
-        secretKeyRef:
-          name: loki-s3-credentials-staging
-          key: AWS_SECRET_ACCESS_KEY
-
-  ruler:
-    storage:
-      type: s3  # Store ruler rules in S3 as well.
-    enable_api: true  # Common in production if you use alerting rules.
+  # Use simple filesystem storage in the container for staging
+  config:
+    auth_enabled: false
+    server:
+      http_listen_port: 3100
+    ingester:
+      lifecycler:
+        address: 127.0.0.1
+        ring:
+          kvstore:
+            store: inmemory
+          replication_factor: 1
+      chunk_idle_period: 5m
+      max_chunk_age: 1h
+    schema_config:
+      configs:
+        - from: "2020-10-24"
+          store: boltdb
+          object_store: filesystem
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
+    storage_config:
+      boltdb:
+        directory: /data/loki/index
+      filesystem:
+        directory: /data/loki/chunks
+    limits_config:
+      retention_period: 24h
 
 promtail:
-  enabled: true  # Keep log shipping enabled.
+  enabled: true
   resources:
     requests:
-      cpu: "50m"  # Reasonable baseline for production.
+      cpu: "50m"
       memory: "128Mi"
     limits:
       cpu: "200m"
       memory: "256Mi"
-# Pointing Grafana at http://loki.logging.svc:3100 can work 
-# if Grafana is in the same cluster and namespace routing is 
-# correct, but in production I’d usually prefer the service 
-# DNS name that matches your actual deployment and, if applicable, 
-# a gateway/service in front of Loki. If Grafana is installed via 
-# kube-prometheus-stack, the datasource should also be managed 
-# there so you don’t duplicate configuration.
-grafana:
-  enabled: false  # If Grafana comes from kube-prometheus-stack, disable bundled Grafana here.
+  config:
+    server:
+      http_listen_port: 3101
+      grpc_listen_port: 0
+    clients:
+      - url: http://loki-staging.logging.svc:3100/loki/api/v1/push
+    positions:
+      filename: /run/promtail/positions.yaml
+    scrape_configs:
+      - job_name: kubernetes-pods
+        pipeline_stages:
+          - docker: {}
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: node

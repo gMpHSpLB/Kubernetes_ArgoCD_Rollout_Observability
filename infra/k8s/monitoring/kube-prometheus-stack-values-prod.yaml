@@ -73,11 +73,11 @@ prometheus:
   prometheusSpec:
     resources:
       requests:
-        cpu: "500m"
-        memory: "2Gi"
+        cpu: "200m" #"500m"
+        memory: "512Mi" #"2Gi"
       limits:
-        cpu: "2000m"
-        memory: "4Gi"
+        cpu: "500m" #"2000m"
+        memory: "1Gi" #"4Gi"
 
     retention: 30d
     scrapeInterval: "30s" # 30s is cost-effective; use 15s for tighter SLOs
@@ -183,7 +183,7 @@ grafana:
     - name: loki
       type: loki # declares this as a Loki datasource.
       access: proxy # means Grafana proxies queries to Loki from the server side, which is standard in Kubernetes.
-      url: http://loki.logging.svc:3100 # must match the Loki service name/namespace; with helm upgrade --install loki ... -n logging the service will be loki.logging.svc:3100 by default
+      url: http://loki-prod.logging.svc:3100 # must match the Loki service name/namespace; with helm upgrade --install loki ... -n logging the service will be loki.logging.svc:3100 by default
       isDefault: false
       jsonData:
         maxLines: 1000
@@ -207,5 +207,5 @@ grafana:
             path: /var/lib/grafana/dashboards/myapp
 
   dashboardsConfigMaps:
-    infra: grafana-dashboards-infra
-    myapp: grafana-dashboards-myapp
+    infra: grafana-dashboards-infra-prod
+    myapp: grafana-dashboards-myapp-prod
