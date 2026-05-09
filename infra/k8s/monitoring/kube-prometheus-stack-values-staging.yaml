@@ -148,13 +148,13 @@ grafana:
       nginx.ingress.kubernetes.io/backend-protocol: HTTP
       nginx.ingress.kubernetes.io/proxy-body-size: "50m"
     hosts:
-      - grafana.example.com
+      - grafana-staging.example.com
     path: /
     pathType: Prefix
     tls:
-      - secretName: grafana-tls
+      - secretName: grafana-staging-tls
         hosts:
-          - grafana.example.com
+          - grafana-staging.example.com
 
   rbac:
     create: true

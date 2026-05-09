@@ -1020,14 +1020,105 @@ define k8s_http_smoke_check
 	sleep 3; \
 	set -e; \
 	echo "GET http://localhost:$$PORT/healthz"; \
-	curl -sf "http://localhost:$$PORT/healthz" > /dev/null; \
+	if curl -fsS http://localhost:$$PORT/healthz; then \
+		echo "OK"; \
+	else \
+		echo "HTTP smoke check failed (healthz)"; \
+		kill $$PF_PID 2>/dev/null || true; \
+		wait $$PF_PID 2>/dev/null || true; \
+		exit 7; \
+	fi; \
 	echo "GET http://localhost:$$PORT/readyz"; \
-	curl -sf "http://localhost:$$PORT/readyz" > /dev/null; \
+	if curl -fsS http://localhost:$$PORT/readyz; then \
+		echo "OK"; \
+	else \
+		echo "HTTP smoke check failed (readyz)"; \
+		kill $$PF_PID 2>/dev/null || true; \
+		wait $$PF_PID 2>/dev/null || true; \
+		exit 7; \
+	fi; \
 	echo "GET http://localhost:$$PORT/metrics"; \
-	curl -sf "http://localhost:$$PORT/metrics" > /dev/null; \
+	if curl -fsS http://localhost:$$PORT/metrics; then \
+		echo "OK"; \
+	else \
+		echo "HTTP smoke check failed (metrics)"; \
+		kill $$PF_PID 2>/dev/null || true; \
+		wait $$PF_PID 2>/dev/null || true; \
+		exit 7; \
+	fi; \
 	echo "HTTP smoke checks passed for $$SVC on port $$PORT"; \
-	kill $$PF_PID || true; \
+	kill $$PF_PID 2>/dev/null || true; \
 	wait $$PF_PID 2>/dev/null || true
+endef
+
+# Generic in-cluster curl helper
+# An in‑cluster service test answers:
+# “If I am a pod inside the cluster, can I reach myapp via its Kubernetes Service?”
+# Concretely:
+# 	- You create a temporary pod (here: curlimages/curl) inside the same namespace as your app.
+# 	- That pod does an HTTP request to the service DNS name (myapp-dev-myapp, myapp-staging-myapp, etc.) on the app port (8000).
+# 	- You assert 200 OK from /healthz using curl -sf (which fails if the status code is not 2xx).
+# So the test validates:
+# 	- Cluster DNS (service name resolves).
+# 	- Service object (selector, port) is correct.
+# 	- Pods behind the Service are alive and answering HTTP.
+# 	- No network policies are blocking traffic inside the namespace for that path.
+#
+# How we’re doing it with this command
+# Example dev run after the refactor:
+# bash
+# 	kubectl -n myapp-dev run curlpod --rm -it \
+#   	--image=curlimages/curl --restart=Never -- \
+#   	curl -sf http://myapp-dev-myapp:8000/healthz
+# Step‑by‑step:
+# 	kubectl -n myapp-dev run curlpod ...
+# 	- Creates a short‑lived pod named curlpod in namespace myapp-dev using image curlimages/curl.
+# 	- --rm cleans it up afterwards.
+# Inside that pod, we run:
+# bash
+# 	curl -sf http://myapp-dev-myapp:8000/healthz
+# 		- myapp-dev-myapp is your Service name.
+# 		- Kubernetes DNS resolves it to the ClusterIP (e.g. 10.103.83.137).
+#		- curl -sf sends a GET to /healthz and exits non‑zero if the status is not 2xx or the connection fails.
+# If anything is miswired (DNS, Service, pods, Netpol), the command fails and so does the Make target.
+# The in‑cluster test is complementary because it:
+# 	- Simulates real service‑to‑service traffic as other workloads in the cluster would see it.
+# 	- Catches DNS/service wiring or network policy issues that a port‑forward might bypass.
+# Think of it as:
+# 	- In‑cluster smoke: “Kubernetes plumbing and app are healthy from another pod’s point of view.”
+# 	- Host‑side smoke: “I, as an operator/CI job on the host, can talk to the app via its Service.”
+# $(1) = namespace
+# $(2) = service DNS name
+define k8s_incluster_smoke_check
+	@echo "=== In-cluster service smoke for namespace $(1), service $(2) ==="
+	kubectl -n "$(1)" run curlpod --rm -it \
+	  --image=curlimages/curl --restart=Never -- \
+	  curl -sf "http://$(2):8000/healthz"
+endef
+
+# -------- In-cluster Grafana smokes (staging/prod) --------
+# - Creates a short‑lived pod in monitoring named grafana-curlpod, 
+#   using curlimages/curl.
+# - Inside that pod, runs curl -sf http://kps-staging-grafana/login.
+# 	  - Kubernetes DNS resolves kps-staging-grafana to the Grafana ClusterIP service.
+# 	  - Traffic is routed via that service to the Grafana pod(s) on port 80.
+# 	  - /login should return 200 (or a 3xx redirect), which curl -sf treats as success.
+#
+# If DNS is broken, service name is wrong, Grafana pods are down, or 
+# Netpol blocks traffic, the command fails and so does the Make target.
+# The in‑cluster test is complementary:
+# 	- Port‑forward check: “From my laptop/CI host, I can tunnel to 
+#     Grafana and get /login.”
+# 	- In‑cluster test: “From another pod in the monitoring namespace, 
+#     Kubernetes Service + DNS + Grafana are working.”
+# Generic helper
+# $(1) = namespace (monitoring)
+# $(2) = service name (e.g. kps-staging-grafana)
+define k8s_incluster_grafana_smoke
+	@echo "=== In-cluster Grafana smoke for service $(2) in namespace $(1) ==="
+	kubectl -n "$(1)" run grafana-curlpod --rm -it \
+	  --image=curlimages/curl --restart=Never -- \
+	  curl -sf "http://$(2)/login"
 endef
 
 # A Helm-based installation target for deploying the kube-prometheus-stack 
@@ -1401,6 +1492,32 @@ k8s-http-smoke-prod: ## HTTP-level smoke for myapp-prod via Service
 k8s-observability-check-all: k8s-observability-check-dev k8s-http-smoke-dev k8s-observability-check-staging k8s-http-smoke-staging k8s-observability-check-prod k8s-http-smoke-prod
 	@echo "Observability + HTTP checks completed for dev, staging, and prod."
 
+# --------- in‑cluster service smoke ------------------------------
+# An in‑cluster service test answers:
+# 	- “If I am a pod inside the cluster, can I reach myapp via its Kubernetes Service?
+
+.PHONY: k8s-incluster-smoke-myapp-dev
+k8s-incluster-smoke-myapp-dev:
+	$(call k8s_incluster_smoke_check,$(K8S_APP_NAMESPACE_DEV),$(K8S_MYAPP_DEPLOY_DEV))
+
+.PHONY: k8s-incluster-smoke-myapp-staging
+k8s-incluster-smoke-myapp-staging:
+	$(call k8s_incluster_smoke_check,$(K8S_APP_NAMESPACE_STAGING),$(K8S_MYAPP_DEPLOY_STAGING))
+
+.PHONY: k8s-incluster-smoke-myapp-prod
+k8s-incluster-smoke-myapp-prod:
+	$(call k8s_incluster_smoke_check,$(K8S_APP_NAMESPACE_PROD),$(K8S_MYAPP_DEPLOY_PROD))
+
+# The in‑cluster Grafana smoke answers:
+# 	- “If I am another pod inside the cluster (in monitoring), 
+#	   can I reach the Grafana Service and get a valid HTTP response?”
+.PHONY: k8s-incluster-grafana-smoke-staging
+k8s-incluster-grafana-smoke-staging:
+	$(call k8s_incluster_grafana_smoke,$(K8S_MONITORING_NAMESPACE),$(K8S_KPS_RELEASE)-staging-grafana)
+
+.PHONY: k8s-incluster-grafana-smoke-prod
+k8s-incluster-grafana-smoke-prod:
+	$(call k8s_incluster_grafana_smoke,$(K8S_MONITORING_NAMESPACE),$(K8S_KPS_RELEASE)-prod-grafana)
 
 # ---------- INFRA OBSERVABILITY CHECKS (Prometheus / Grafana / Loki) ----------
 #Right now, all three envs (dev/staging/prod) are on the same Minikube cluster, sharing:
@@ -1674,6 +1791,7 @@ k8s-smoke-dev: ## Observability smoke for DEV (assumes dev app already deployed)
 	$(MAKE) k8s-observability-dev         # namespaces + monitoring + logging + rules + dashboards + netpol
 	$(MAKE) k8s-observability-infra-check # Prom/Grafana/Loki in monitoring/logging
 	$(MAKE) k8s-observability-check-dev   # Pod-level health (probes + logs), app-level checks in myapp-dev
+	$(MAKE) k8s-incluster-smoke-myapp-dev
 	$(MAKE) k8s-http-smoke-dev			  # Service-level behavior, 
 	@echo "End-to-end DEV smoke (observability + HTTP) completed."
 
@@ -1682,7 +1800,9 @@ k8s-smoke-staging: ## Observability smoke for STAGING (assumes staging app alrea
 	$(MAKE) k8s-logging-staging-secrets-soft
 	$(MAKE) k8s-observability-staging         # namespaces + monitoring + logging + rules + dashboards + netpol
 	$(MAKE) k8s-observability-infra-check # Prom/Grafana/Loki in monitoring/logging
+	$(MAKE) k8s-incluster-grafana-smoke-staging
 	$(MAKE) k8s-observability-check-staging   # app-level checks in myapp-staging
+	$(MAKE) k8s-incluster-smoke-myapp-staging
 	$(MAKE) k8s-http-smoke-staging			  # Service-level behavior,
 	@echo "End-to-end STAGING smoke (observability + HTTP) completed."
 
@@ -1691,7 +1811,9 @@ k8s-smoke-prod: ## Observability smoke for PROD (assumes prod app already deploy
 	$(MAKE) k8s-logging-prod-secrets-soft
 	$(MAKE) k8s-observability-prod         # namespaces + monitoring + logging + rules + dashboards + netpol
 	$(MAKE) k8s-observability-infra-check # Prom/Grafana/Loki in monitoring/logging
+	$(MAKE) k8s-incluster-grafana-smoke-prod
 	$(MAKE) k8s-observability-check-prod   # app-level checks in myapp-prod
+	$(MAKE) k8s-incluster-smoke-myapp-prod
 	$(MAKE) k8s-http-smoke-prod			  # Service-level behavior,
 	@echo "End-to-end PROD smoke (observability + HTTP) completed."
 

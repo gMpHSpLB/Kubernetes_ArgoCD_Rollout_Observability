@@ -1,0 +1,24 @@
+# Assuming:
+#  - Namespace: myapp-dev
+#  - Service: myapp-dev-myapp
+#  - Port: 8000
+#  - You’re fine using a fake host like myapp-dev.local
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-dev
+  namespace: myapp-dev
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: myapp-dev.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: myapp-dev-myapp
+                port:
+                  number: 8000
