@@ -41,17 +41,10 @@ Practical takeaway
 In plain English, the phrase means: “Put your Kubernetes deployment config in Git, let Argo CD watch that Git repo, and let CI stop being the thing that directly pushes to Kubernetes.” This is helpful because it improves reproducibility, reviewability, rollback, and protection against manual cluster changes.
 
 repo layout:::
-
-gitops/
-  dev/
-    argocd-app-monitoring.yaml
-    argocd-app-logging.yaml
-    argocd-app-myapp.yaml
-  staging/
-    argocd-app-monitoring.yaml
-    argocd-app-logging.yaml
-    argocd-app-myapp.yaml
-  prod/
-    argocd-app-monitoring.yaml
-    argocd-app-logging.yaml
-    argocd-app-myapp.yaml
+1. ApplicationSet 1 – Monitoring (kube‑prometheus‑stack + Grafana)
+gitops/argocd-appset-monitoring.yaml
+2. ApplicationSet 2 – Logging stack
+gitops/argocd-appset-logging.yaml
+3. ApplicationSet 3 – MyApp (Helm + per‑env values)
+This is where your app chart and environments/*/values-myapp.yaml come in.
+gitops/argocd-appset-myapp.yaml
