@@ -119,6 +119,24 @@ K8S_GRAFANA_DASHBOARD_CM_DIR ?= $(K8S_MONITORING_DIR)/grafana/configmaps
 # AWS 
 REQUIRE_AWS_LOGGING ?= 0
 
+# ---- ArgoCD bootstrap ----
+GITOPS_DIR ?= gitops
+
+ARGOCD_NAMESPACE ?= argocd
+ARGOCD_MANIFEST_URL ?= https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# ArgoCD CLI
+ARGOCD_CLI_BIN ?= argocd
+ARGOCD_CLI_URL ?= https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+# ArgoCD CLI login (local Minikube)
+ARGOCD_SERVER ?= localhost:8080
+ARGOCD_USERNAME ?= admin
+# For local dev, we often disable TLS verification for the CLI.
+ARGOCD_INSECURE ?= true
+
+# Path to local, untracked HTTPS repo secret for ArgoCD
+REPO_HTTPS_SECRET_FILE ?= infra/secrets-local/argocd-repo-pythonworkspace-https.yaml
+
 ###############Code Quality ###############################
 .PHONY: lint format type security quality coverage smoke-test test test-docker clean-coverage clean
 
@@ -1902,3 +1920,229 @@ k8s-nuke:
 	@echo "!!! FULL NUKE: cleaning namespaces/PVCs and recreating Minikube cluster !!!"
 	$(MAKE) k8s-clean-minikube
 	$(MAKE) recreate-minikube
+
+# -------------------------- ArgoCD --------------------------------------------------------
+
+# -------------------------- ArgoCD bootstrap ----------------------------------------------
+.PHONY: argocd-install
+argocd-install:
+# 1) Create namespace
+	kubectl create namespace $(ARGOCD_NAMESPACE) || true
+# 2) Install ArgoCD (stable manifests include ApplicationSet controller)
+	kubectl apply -n $(ARGOCD_NAMESPACE) --server-side --force-conflicts -f $(ARGOCD_MANIFEST_URL)
+# 3) Wait for all ArgoCD pods to be ready:
+	kubectl wait --for=condition=Ready pods --all -n $(ARGOCD_NAMESPACE) --timeout=300s
+# You should see pods like:
+# 	argocd-server
+# 	argocd-repo-server
+# 	argocd-application-controller
+# 	argocd-applicationset-controller
+	kubectl get pods -n $(ARGOCD_NAMESPACE)
+
+# Access ArgoCD UI
+# Port‑forward the UI, You can now see each Application, their sync status, health, and logs
+.PHONY: argocd-port-forward
+argocd-port-forward:
+	kubectl port-forward svc/argocd-server -n $(ARGOCD_NAMESPACE) 8080:443
+
+# Password
+.PHONY: argocd-admin-password
+argocd-admin-password:
+	kubectl -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret \
+	  -o jsonpath="{.data.password}" | base64 -d && echo
+
+# ---- ArgoCD ApplicationSets for myapp ----
+
+# Apply ApplicationSets
+# After this, The ApplicationSet controller will then generate Application objects automatically.
+.PHONY: argocd-apply-appsets
+argocd-apply-appsets:
+	kubectl apply -f $(GITOPS_DIR)/argocd-appset-monitoring.yaml
+	kubectl apply -f $(GITOPS_DIR)/argocd-appset-logging.yaml
+	kubectl apply -f $(GITOPS_DIR)/argocd-appset-myapp.yaml
+
+# Check Application objects
+# You should see something like:
+# 	myapp-monitoring-dev|staging|prod
+# 	myapp-logging-dev|staging|prod
+# 	myapp-dev|staging|prod
+# They’ll initially be OutOfSync until they sync the first time.
+.PHONY: argocd-list-apps
+argocd-list-apps:
+	kubectl get applications.argoproj.io -n $(ARGOCD_NAMESPACE)
+
+.PHONY: argocd-repo-https-secret
+argocd-repo-https-secret:
+	@if [ ! -f "$(REPO_HTTPS_SECRET_FILE)" ]; then \
+	  echo "ERROR: $(REPO_HTTPS_SECRET_FILE) not found."; \
+	  echo "Create it with your HTTPS repo credentials (GitHub PAT) before bootstrapping."; \
+	  exit 1; \
+	fi
+	kubectl apply -f $(REPO_HTTPS_SECRET_FILE)
+
+# Full bootstrap from scratch, 
+# From a clean Minikube: make k8s-bootstrap-argocd
+.PHONY: k8s-bootstrap-argocd
+k8s-bootstrap-argocd:
+	$(MAKE) argocd-install
+	$(MAKE) argocd-repo-https-secret
+	$(MAKE) argocd-apply-appsets
+	$(MAKE) argocd-list-apps
+
+# ---- ArgoCD CLI install ---------------------------------------------
+# CLI install (Linux / WSL)
+# This mirrors the official install snippet (download latest Linux binary, mark executable).
+.PHONY: argocd-cli-install
+argocd-cli-install:
+	curl -sSL -o $(ARGOCD_CLI_BIN) "$(ARGOCD_CLI_URL)"
+	chmod +x $(ARGOCD_CLI_BIN)
+	# Put it in PATH if needed; on WSL you can keep it in repo and call ./argocd
+	./$(ARGOCD_CLI_BIN) version --client
+
+# ---- ArgoCD CLI login (local Minikube) --------------------------------------
+# Make targets to sync via ArgoCD (not Helm)
+# We’ll assume you’re using the ApplicationSets we discussed, which generate these Applications:
+# 	- Monitoring: myapp-monitoring-dev|staging|prod
+# 	- Logging: myapp-logging-dev|staging|prod
+# 	- App: myapp-dev|staging|prod
+# We’ll create:
+# 	- argocd-login-local – log in the CLI to the ArgoCD server.
+# 	- argocd-sync-dev|staging|prod – sync apps for each env and wait for them to become Healthy.
+# Env smokes can call these instead of helm upgrade.
+# Duplicate, see above
+# .PHONY: argocd-port-forward
+# argocd-port-forward:
+# 	kubectl port-forward svc/argocd-server -n $(ARGOCD_NAMESPACE) 8080:443
+
+# Duplicate, see above
+# .PHONY: argocd-admin-password
+# argocd-admin-password:
+# 	kubectl -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret \
+# 	  -o jsonpath="{.data.password}" | base64 -d && echo
+
+# This logs in using the initial admin password and grpc-web via the 
+# port‑forwarded endpoint.
+# For a “real” cluster, you’d use the LoadBalancer URL and proper TLS; 
+# but design is the same.
+.PHONY: argocd-login-local
+argocd-login-local:
+	# Assumes 'make argocd-port-forward' is already running in another terminal
+	@echo "Logging into ArgoCD at $(ARGOCD_SERVER) as $(ARGOCD_USERNAME)..."
+	./$(ARGOCD_CLI_BIN) login $(ARGOCD_SERVER) \
+	  --username $(ARGOCD_USERNAME) \
+	  --password "$$(kubectl -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)" \
+	  --grpc-web \
+	  $(if $(ARGOCD_INSECURE),--insecure,)
+
+# ---- ArgoCD app sync targets ----
+# Sync targets per environment
+# This uses the standard argocd app sync and argocd app wait commands 
+# to sync and ensure all three apps per env are Healthy.
+.PHONY: argocd-sync-dev
+argocd-sync-dev: argocd-login-local
+	./$(ARGOCD_CLI_BIN) app sync myapp-monitoring-dev
+	./$(ARGOCD_CLI_BIN) app sync myapp-logging-dev
+	./$(ARGOCD_CLI_BIN) app sync myapp-dev
+	./$(ARGOCD_CLI_BIN) app wait myapp-monitoring-dev myapp-logging-dev myapp-dev \
+	  --health --timeout 300
+
+.PHONY: argocd-sync-staging
+argocd-sync-staging: argocd-login-local
+	./$(ARGOCD_CLI_BIN) app sync myapp-monitoring-staging
+	./$(ARGOCD_CLI_BIN) app sync myapp-logging-staging
+	./$(ARGOCD_CLI_BIN) app sync myapp-staging
+	./$(ARGOCD_CLI_BIN) app wait myapp-monitoring-staging myapp-logging-staging myapp-staging \
+	  --health --timeout 300
+
+.PHONY: argocd-sync-prod
+argocd-sync-prod: argocd-login-local
+	./$(ARGOCD_CLI_BIN) app sync myapp-monitoring-prod
+	./$(ARGOCD_CLI_BIN) app sync myapp-logging-prod
+	./$(ARGOCD_CLI_BIN) app sync myapp-prod
+	./$(ARGOCD_CLI_BIN) app wait myapp-monitoring-prod myapp-logging-prod myapp-prod \
+	  --health --timeout 600
+
+# ArgoCD smoke targets (separate from Helm)
+# You already added:
+# 	argocd-cli-install
+# 	argocd-login-local
+# 	argocd-sync-dev|staging|prod
+# 	k8s-bootstrap-argocd
+#
+# We’ll now add parallel smoke targets that:
+# 	- Assume ArgoCD is managing deployments for that env.
+# 	- Call argocd-sync-* to reconcile Git → cluster.
+# 	- Then reuse your existing observability + app smokes.
+
+# Dev: ArgoCD‑driven smoke
+# Notes:
+# - We do not call k8s-observability-dev here, because ArgoCD is now 
+#   responsible for deploying monitoring/logging (via the ApplicationSets).
+# - k8s-observability-infra-check and k8s-observability-check-dev remain 
+#   valid; they just verify what ArgoCD deployed.
+.PHONY: k8s-smoke-dev-argocd
+k8s-smoke-dev-argocd: ## Full DEV smoke using ArgoCD (no Helm deploys)
+	@echo "Running DEV ArgoCD-based smoke (sync + observability + app checks)..."
+	$(MAKE) argocd-sync-dev
+	$(MAKE) k8s-observability-infra-check
+	$(MAKE) k8s-observability-check-dev
+	$(MAKE) k8s-incluster-smoke-myapp-dev
+	$(MAKE) k8s-http-smoke-dev
+	@echo "End-to-end DEV ArgoCD smoke completed."
+
+# Staging: ArgoCD‑driven smoke
+# 	- k8s-logging-staging-secrets-soft is still fine; it just ensures 
+#     staging Loki secrets exist before/after ArgoCD sync.
+# 	- We intentionally do not call k8s-observability-staging 
+#     (Helm deploy), keeping ArgoCD as the sole deployer.
+.PHONY: k8s-smoke-staging-argocd
+k8s-smoke-staging-argocd: ## Full STAGING smoke using ArgoCD (no Helm deploys)
+	@echo "Running STAGING ArgoCD-based smoke (sync + observability + app checks)..."
+	$(MAKE) argocd-sync-staging
+	$(MAKE) k8s-logging-staging-secrets-soft
+	$(MAKE) k8s-observability-infra-check
+	$(MAKE) k8s-incluster-grafana-smoke-staging
+	$(MAKE) k8s-observability-check-staging
+	$(MAKE) k8s-incluster-smoke-myapp-staging
+	$(MAKE) k8s-http-smoke-staging
+	@echo "End-to-end STAGING ArgoCD smoke completed."
+
+# Prod: ArgoCD‑driven smoke
+# Again, no Helm deploy here; ArgoCD manages prod monitoring/logging/app based on Git.
+.PHONY: k8s-smoke-prod-argocd
+k8s-smoke-prod-argocd: ## Full PROD smoke using ArgoCD (no Helm deploys)
+	@echo "Running PROD ArgoCD-based smoke (sync + observability + app checks)..."
+	$(MAKE) argocd-sync-prod
+	$(MAKE) k8s-logging-prod-secrets-soft
+	$(MAKE) k8s-observability-infra-check
+	$(MAKE) k8s-incluster-grafana-smoke-prod
+	$(MAKE) k8s-observability-check-prod
+	$(MAKE) k8s-incluster-smoke-myapp-prod
+	$(MAKE) k8s-http-smoke-prod
+	@echo "End-to-end PROD ArgoCD smoke completed."
+
+# Convenience: run ArgoCD smokes for all envs
+.PHONY: k8s-smoke-all-argocd
+k8s-smoke-all-argocd: ## ArgoCD-based smokes for dev, staging, prod
+	$(MAKE) k8s-smoke-dev-argocd
+	$(MAKE) k8s-smoke-staging-argocd
+	$(MAKE) k8s-smoke-prod-argocd
+	@echo "End-to-end ArgoCD-based smoke completed for dev, staging, and prod."
+
+# add one more top-level target for your own convenience, instead of wiring bootstrap into each smoke:
+#  - From clean cluster: make k8s-from-scratch-dev-argocd
+#  - Day-to-day: just make k8s-smoke-dev-argocd (no reinstall/rebootstrapping).
+.PHONY: k8s-from-scratch-dev-argocd
+k8s-from-scratch-dev-argocd:
+	$(MAKE) k8s-bootstrap-argocd
+	$(MAKE) k8s-smoke-dev-argocd
+
+.PHONY: k8s-from-scratch-staging-argocd
+k8s-from-scratch-staging-argocd:
+	$(MAKE) k8s-bootstrap-argocd
+	$(MAKE) k8s-smoke-staging-argocd
+
+.PHONY: k8s-from-scratch-prod-argocd
+k8s-from-scratch-prod-argocd:
+	$(MAKE) k8s-bootstrap-argocd
+	$(MAKE) k8s-smoke-prod-argocd

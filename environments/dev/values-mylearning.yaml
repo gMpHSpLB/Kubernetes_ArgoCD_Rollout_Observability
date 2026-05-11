@@ -40,6 +40,7 @@ image:
   tag: ""
   pullPolicy: IfNotPresent
 
+debug: true
 resources:
   limits:
     cpu: "200m"

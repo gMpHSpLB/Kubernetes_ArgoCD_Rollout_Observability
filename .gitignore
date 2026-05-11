@@ -6,3 +6,4 @@ __pycache__/
 .poetry/
 *.xml
 install-scout.sh
+infra/secrets-local/*.yaml

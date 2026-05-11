@@ -49,6 +49,7 @@ service:
   type: ClusterIP #  means the app is exposed only inside the cluster, not directly outside it.
   port: 8000 # is the port the service listens on and forwards to the app.
 
+debug: true
 resources: # sets CPU and memory requests/limits so Kubernetes knows how much capacity the app needs and what maximum it may use
   limits:
     cpu: "500m"
