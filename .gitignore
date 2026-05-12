@@ -7,3 +7,4 @@ __pycache__/
 *.xml
 install-scout.sh
 infra/secrets-local/*.yaml
+bin/argocd

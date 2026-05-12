@@ -2,7 +2,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: myapp-monitoring-environments
+  name: cluster-monitoring-infra-environments
   namespace: argocd
 spec:
   goTemplate: true
@@ -13,22 +13,22 @@ spec:
         elements:
           - environment: dev
             namespace: monitoring
-            autoSync: "true"
             targetRevision: main
+            valuesFile: "kube-prometheus-stack-values-dev.yaml"
           - environment: staging
             namespace: monitoring
-            autoSync: "true"
             targetRevision: main
+            valuesFile: "kube-prometheus-stack-values-staging.yaml"
           - environment: prod
             namespace: monitoring
-            autoSync: "false"
             targetRevision: main
+            valuesFile: "kube-prometheus-stack-values-prod.yaml"
   template:
     metadata:
-      name: myapp-monitoring-{{.environment}}
+      name: cluster-monitoring-infra-{{.environment}}
       labels:
         app.kubernetes.io/part-of: myapp
-        app.kubernetes.io/component: monitoring
+        app.kubernetes.io/component: cluster-monitoring
         app.kubernetes.io/environment: "{{.environment}}"
     spec:
       project: default
@@ -36,14 +36,22 @@ spec:
         repoURL: https://github.com/gMpHSpLB/pythonworkspace.git
         targetRevision: "{{.targetRevision}}"
         path: infra/k8s/monitoring
+        helm:
+          valueFiles:
+            - "{{.valuesFile}}"
       destination:
+        # If each Argo CD instance runs in its own cluster:
         server: https://kubernetes.default.svc
         namespace: "{{.namespace}}"
       syncPolicy:
         syncOptions:
           - CreateNamespace=true
   templatePatch: |
-    {{- if eq .autoSync "true" }}
+    {{- if eq .environment "prod" }}
+    spec:
+      syncPolicy:
+        automated: null
+    {{- else }}
     spec:
       syncPolicy:
         automated:

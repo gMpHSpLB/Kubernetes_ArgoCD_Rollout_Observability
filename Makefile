@@ -126,7 +126,7 @@ ARGOCD_NAMESPACE ?= argocd
 ARGOCD_MANIFEST_URL ?= https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # ArgoCD CLI
-ARGOCD_CLI_BIN ?= argocd
+ARGOCD_CLI_BIN ?= bin/argocd
 ARGOCD_CLI_URL ?= https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
 # ArgoCD CLI login (local Minikube)
 ARGOCD_SERVER ?= localhost:8080
@@ -1953,6 +1953,12 @@ argocd-admin-password:
 
 # ---- ArgoCD ApplicationSets for myapp ----
 
+# Apply the ApplicationSet in your ArgoCD bootstrap
+# installing kube‑prometheus‑stack + CRDs
+.PHONY: argocd-apply-cluster-monitoring-appset
+argocd-apply-cluster-monitoring-appset:
+	kubectl apply -f gitops/argocd-appset-cluster-monitoring.yaml
+
 # Apply ApplicationSets
 # After this, The ApplicationSet controller will then generate Application objects automatically.
 .PHONY: argocd-apply-appsets
@@ -1980,24 +1986,41 @@ argocd-repo-https-secret:
 	fi
 	kubectl apply -f $(REPO_HTTPS_SECRET_FILE)
 
+# Keep argocd-rbac-cm.yaml under gitops/argocd/ (without secrets).
+.PHONY: argocd-rbac
+argocd-rbac:
+	kubectl apply -f gitops/argocd/argocd-rbac-cm.yaml
+	kubectl rollout restart deployment argocd-server -n $(ARGOCD_NAMESPACE)
+	# In the standard Argo CD install, the application controller runs 
+	# as a StatefulSet, not a Deployment
+	kubectl rollout restart statefulset argocd-application-controller -n $(ARGOCD_NAMESPACE)
+
 # Full bootstrap from scratch, 
 # From a clean Minikube: make k8s-bootstrap-argocd
 .PHONY: k8s-bootstrap-argocd
 k8s-bootstrap-argocd:
 	$(MAKE) argocd-install
+	$(MAKE) argocd-rbac
 	$(MAKE) argocd-repo-https-secret
 	$(MAKE) argocd-apply-appsets
+	$(MAKE) argocd-apply-cluster-monitoring-appset
 	$(MAKE) argocd-list-apps
 
 # ---- ArgoCD CLI install ---------------------------------------------
 # CLI install (Linux / WSL)
-# This mirrors the official install snippet (download latest Linux binary, mark executable).
+# This mirrors the official install snippet 
+#   (download latest Linux binary, mark executable).
+# Download the argocd binary to $(ARGOCD_CLI_BIN) (which in your Makefile appears to 
+#   be argocd in the current directory).
+# Mark it executable.
+# Run ./argocd version --client to verify.
 .PHONY: argocd-cli-install
 argocd-cli-install:
+	mkdir -p bin
 	curl -sSL -o $(ARGOCD_CLI_BIN) "$(ARGOCD_CLI_URL)"
 	chmod +x $(ARGOCD_CLI_BIN)
 	# Put it in PATH if needed; on WSL you can keep it in repo and call ./argocd
-	./$(ARGOCD_CLI_BIN) version --client
+	$(ARGOCD_CLI_BIN) version --client
 
 # ---- ArgoCD CLI login (local Minikube) --------------------------------------
 # Make targets to sync via ArgoCD (not Helm)
@@ -2026,9 +2049,26 @@ argocd-cli-install:
 # but design is the same.
 .PHONY: argocd-login-local
 argocd-login-local:
-	# Assumes 'make argocd-port-forward' is already running in another terminal
+	@if [ ! -x "$(ARGOCD_CLI_BIN)" ]; then \
+	  echo "ERROR: $(ARGOCD_CLI_BIN) not found or not executable. Run 'make argocd-cli-install' first."; \
+	  exit 1; \
+	fi
+	@echo "Starting port-forward to ArgoCD server on localhost:8080..."
+	-kubectl port-forward svc/argocd-server -n $(ARGOCD_NAMESPACE) 8080:443 >/tmp/argocd-pf.log 2>&1 &
+	@echo "Waiting for ArgoCD server port-forward to be ready..."
+	@for i in $$(seq 1 20); do \
+	  if nc -z localhost 8080 2>/dev/null; then \
+	    echo "ArgoCD server is reachable on localhost:8080"; \
+	    break; \
+	  fi; \
+	  sleep 1; \
+	  if [ $$i -eq 20 ]; then \
+	    echo "ERROR: ArgoCD server not reachable on localhost:8080 after 20s"; \
+	    exit 1; \
+	  fi; \
+	done
 	@echo "Logging into ArgoCD at $(ARGOCD_SERVER) as $(ARGOCD_USERNAME)..."
-	./$(ARGOCD_CLI_BIN) login $(ARGOCD_SERVER) \
+	$(ARGOCD_CLI_BIN) login $(ARGOCD_SERVER) \
 	  --username $(ARGOCD_USERNAME) \
 	  --password "$$(kubectl -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)" \
 	  --grpc-web \
@@ -2038,29 +2078,47 @@ argocd-login-local:
 # Sync targets per environment
 # This uses the standard argocd app sync and argocd app wait commands 
 # to sync and ensure all three apps per env are Healthy.
+# Check Guide-ArgoCD-Resync-dev_staging_prod.md for more details, when should we call this?
 .PHONY: argocd-sync-dev
 argocd-sync-dev: argocd-login-local
-	./$(ARGOCD_CLI_BIN) app sync myapp-monitoring-dev
-	./$(ARGOCD_CLI_BIN) app sync myapp-logging-dev
-	./$(ARGOCD_CLI_BIN) app sync myapp-dev
-	./$(ARGOCD_CLI_BIN) app wait myapp-monitoring-dev myapp-logging-dev myapp-dev \
+	$(ARGOCD_CLI_BIN) app sync myapp-monitoring-dev
+	$(ARGOCD_CLI_BIN) app sync myapp-logging-dev
+	$(ARGOCD_CLI_BIN) app sync myapp-dev
+	$(ARGOCD_CLI_BIN) app wait myapp-monitoring-dev myapp-logging-dev myapp-dev \
 	  --health --timeout 300
 
 .PHONY: argocd-sync-staging
 argocd-sync-staging: argocd-login-local
-	./$(ARGOCD_CLI_BIN) app sync myapp-monitoring-staging
-	./$(ARGOCD_CLI_BIN) app sync myapp-logging-staging
-	./$(ARGOCD_CLI_BIN) app sync myapp-staging
-	./$(ARGOCD_CLI_BIN) app wait myapp-monitoring-staging myapp-logging-staging myapp-staging \
+	$(ARGOCD_CLI_BIN) app sync myapp-monitoring-staging
+	$(ARGOCD_CLI_BIN) app sync myapp-logging-staging
+	$(ARGOCD_CLI_BIN) app sync myapp-staging
+	$(ARGOCD_CLI_BIN) app wait myapp-monitoring-staging myapp-logging-staging myapp-staging \
 	  --health --timeout 300
 
 .PHONY: argocd-sync-prod
 argocd-sync-prod: argocd-login-local
-	./$(ARGOCD_CLI_BIN) app sync myapp-monitoring-prod
-	./$(ARGOCD_CLI_BIN) app sync myapp-logging-prod
-	./$(ARGOCD_CLI_BIN) app sync myapp-prod
-	./$(ARGOCD_CLI_BIN) app wait myapp-monitoring-prod myapp-logging-prod myapp-prod \
+	$(ARGOCD_CLI_BIN) app sync myapp-monitoring-prod
+	$(ARGOCD_CLI_BIN) app sync myapp-logging-prod
+	$(ARGOCD_CLI_BIN) app sync myapp-prod
+	$(ARGOCD_CLI_BIN) app wait myapp-monitoring-prod myapp-logging-prod myapp-prod \
 	  --health --timeout 600
+
+# Sync per env using the generated Application names
+# cluster-monitoring-infra is synced,
+.PHONY: argocd-sync-cluster-monitoring-dev
+argocd-sync-cluster-monitoring-dev: argocd-login-local
+	$(ARGOCD_CLI_BIN) app sync cluster-monitoring-infra-dev
+	$(ARGOCD_CLI_BIN) app wait cluster-monitoring-infra-dev --health --timeout 600
+
+.PHONY: argocd-sync-cluster-monitoring-staging
+argocd-sync-cluster-monitoring-staging: argocd-login-local
+	$(ARGOCD_CLI_BIN) app sync cluster-monitoring-infra-staging
+	$(ARGOCD_CLI_BIN) app wait cluster-monitoring-infra-staging --health --timeout 600
+
+.PHONY: argocd-sync-cluster-monitoring-prod
+argocd-sync-cluster-monitoring-prod: argocd-login-local
+	$(ARGOCD_CLI_BIN) app sync cluster-monitoring-infra-prod
+	$(ARGOCD_CLI_BIN) app wait cluster-monitoring-infra-prod --health --timeout 600
 
 # ArgoCD smoke targets (separate from Helm)
 # You already added:
@@ -2134,15 +2192,21 @@ k8s-smoke-all-argocd: ## ArgoCD-based smokes for dev, staging, prod
 #  - Day-to-day: just make k8s-smoke-dev-argocd (no reinstall/rebootstrapping).
 .PHONY: k8s-from-scratch-dev-argocd
 k8s-from-scratch-dev-argocd:
+	$(MAKE) argocd-cli-install
 	$(MAKE) k8s-bootstrap-argocd
+	$(MAKE) argocd-sync-cluster-monitoring-dev
 	$(MAKE) k8s-smoke-dev-argocd
 
 .PHONY: k8s-from-scratch-staging-argocd
 k8s-from-scratch-staging-argocd:
+	$(MAKE) argocd-cli-install
 	$(MAKE) k8s-bootstrap-argocd
+	$(MAKE) argocd-sync-cluster-monitoring-staging
 	$(MAKE) k8s-smoke-staging-argocd
 
 .PHONY: k8s-from-scratch-prod-argocd
 k8s-from-scratch-prod-argocd:
+	$(MAKE) argocd-cli-install
 	$(MAKE) k8s-bootstrap-argocd
+	$(MAKE) argocd-sync-cluster-monitoring-prod
 	$(MAKE) k8s-smoke-prod-argocd
