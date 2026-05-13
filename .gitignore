@@ -8,3 +8,4 @@ __pycache__/
 install-scout.sh
 infra/secrets-local/*.yaml
 bin/argocd
+infra/k8s/monitoring/charts/

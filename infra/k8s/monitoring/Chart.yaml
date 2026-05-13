@@ -7,5 +7,5 @@ version: 0.1.0
 
 dependencies:
   - name: kube-prometheus-stack
-    version: "61.3.0"  # choose a tested version; you can pin to what you already use via helm CLI
+    version: "85.0.2"  # choose a tested version; you can pin to what you already use via helm CLI
     repository: "https://prometheus-community.github.io/helm-charts"

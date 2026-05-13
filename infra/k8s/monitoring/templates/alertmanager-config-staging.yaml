@@ -7,7 +7,7 @@ metadata:
   namespace: monitoring
 spec:
   # staging routes/receivers here
-  {{- route:
+  route:
     receiver: default-receiver
     groupBy: ["alertname"]
     groupWait: 30s
@@ -25,5 +25,5 @@ spec:
             name: alertmanager-smtp-secret
             key: smtp_password
           requireTLS: true
-          sendResolved: true -}}
+          sendResolved: true
 {{- end }}

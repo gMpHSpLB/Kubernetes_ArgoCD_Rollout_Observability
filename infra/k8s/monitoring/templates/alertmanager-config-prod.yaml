@@ -7,7 +7,6 @@ metadata:
   namespace: monitoring
 spec:
   # prod routes/receivers here (you can copy from your existing file)
-  {{- 
   route:
     receiver: default-receiver
     groupBy: ["alertname"]
@@ -26,5 +25,5 @@ spec:
             name: alertmanager-smtp-secret
             key: smtp_password
           requireTLS: true
-          sendResolved: true -}}
+          sendResolved: true
 {{- end }}
