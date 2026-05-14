@@ -107,6 +107,9 @@ K8S_MONITORING_VALUES_DEV     ?= $(K8S_KPS_VALUES_DEV)
 K8S_MONITORING_VALUES_STAGING ?= $(K8S_KPS_VALUES_STAGING)
 K8S_MONITORING_VALUES_PROD    ?= $(K8S_KPS_VALUES_PROD)
 
+# kube-prometheus-stack CRDs (pre-installed, not managed by Helm/ArgoCD)
+K8S_MONITORING_CRDS_FILE ?= $(K8S_MONITORING_DIR)/crds/kube-prometheus-stack-crds.yaml
+
 # kube-prometheus-stack / Loki releases & values
 K8S_KPS_RELEASE      ?= kps
 K8S_LOKI_RELEASE     ?= loki
@@ -2038,6 +2041,16 @@ argocd-rbac:
 	# as a StatefulSet, not a Deployment
 	kubectl rollout restart statefulset argocd-application-controller -n $(ARGOCD_NAMESPACE)
 
+# Add a CRD bootstrap target
+# --server-side avoids writing the huge 
+#   kubectl.kubernetes.io/last-applied-configuration annotation that 
+#   causes the 262144‑byte limit to be exceeded.
+# This target is idempotent; you can run it any time 
+#   (after recreating Minikube, before ArgoCD syncs, etc.).
+.PHONY: k8s-monitoring-crds-apply
+k8s-monitoring-crds-apply:
+	kubectl apply --server-side -f $(K8S_MONITORING_CRDS_FILE)
+
 # Full bootstrap from scratch, 
 # From a clean Minikube: make k8s-bootstrap-argocd
 .PHONY: k8s-bootstrap-argocd
@@ -2237,6 +2250,7 @@ k8s-smoke-all-argocd: ## ArgoCD-based smokes for dev, staging, prod
 k8s-from-scratch-dev-argocd:
 	$(MAKE) argocd-cli-install
 	$(MAKE) k8s-bootstrap-argocd
+	$(MAKE) k8s-monitoring-crds-apply
 	$(MAKE) argocd-sync-cluster-monitoring-dev
 	$(MAKE) k8s-smoke-dev-argocd
 
@@ -2244,6 +2258,7 @@ k8s-from-scratch-dev-argocd:
 k8s-from-scratch-staging-argocd:
 	$(MAKE) argocd-cli-install
 	$(MAKE) k8s-bootstrap-argocd
+	$(MAKE) k8s-monitoring-crds-apply
 	$(MAKE) argocd-sync-cluster-monitoring-staging
 	$(MAKE) k8s-smoke-staging-argocd
 
@@ -2251,5 +2266,6 @@ k8s-from-scratch-staging-argocd:
 k8s-from-scratch-prod-argocd:
 	$(MAKE) argocd-cli-install
 	$(MAKE) k8s-bootstrap-argocd
+	$(MAKE) k8s-monitoring-crds-apply
 	$(MAKE) argocd-sync-cluster-monitoring-prod
 	$(MAKE) k8s-smoke-prod-argocd

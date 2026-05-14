@@ -51,6 +51,8 @@
 # one alert rule to confirm Alertmanager works.
 global:
   environment: dev
+crds:
+  enabled: false
 prometheusOperator:
   resources: #  defines how much CPU and memory the operator can use.
     requests: # the minimum guaranteed resources Kubernetes reserves for it.

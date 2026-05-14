@@ -62,6 +62,8 @@
 # Use environment-specific values files: values-dev.yaml, values-staging.yaml, values-prod.yaml.
 global:
   environment: staging
+crds:
+  enabled: false
 prometheusOperator:
   resources:
     requests:
