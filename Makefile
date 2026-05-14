@@ -2051,6 +2051,15 @@ argocd-rbac:
 k8s-monitoring-crds-apply:
 	kubectl apply --server-side -f $(K8S_MONITORING_CRDS_FILE)
 
+# Exclude Prometheus CRDs from Argo CD management
+# In your Argo CD Application or ApplicationSet that defines cluster-monitoring-infra-dev, 
+#  add a resource.exclusions entry in the Argo CD config (argocd-cm) or use ignoreDifferences 
+#  on the app.
+.PHONY: argocd-config
+argocd-config:
+	kubectl apply -f gitops/argocd/argocd-cm.yaml
+	kubectl rollout restart statefulset argocd-application-controller -n $(ARGOCD_NAMESPACE)
+
 # Full bootstrap from scratch, 
 # From a clean Minikube: make k8s-bootstrap-argocd
 .PHONY: k8s-bootstrap-argocd
@@ -2058,6 +2067,7 @@ k8s-bootstrap-argocd:
 	$(MAKE) argocd-install
 	$(MAKE) argocd-rbac
 	$(MAKE) argocd-repo-https-secret
+	$(MAKE) argocd-config
 	$(MAKE) argocd-apply-appsets
 	$(MAKE) argocd-apply-cluster-monitoring-appset
 	$(MAKE) argocd-list-apps
@@ -2120,6 +2130,8 @@ argocd-login-local:
 	  sleep 1; \
 	  if [ $$i -eq 20 ]; then \
 	    echo "ERROR: ArgoCD server not reachable on localhost:8080 after 20s"; \
+	    echo "Port-forward log:"; \
+	    cat /tmp/argocd-pf.log || true; \
 	    exit 1; \
 	  fi; \
 	done

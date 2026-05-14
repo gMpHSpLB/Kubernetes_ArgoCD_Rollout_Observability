@@ -1,0 +1,15 @@
+# gitops/argocd/argocd-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  resource.exclusions: |
+    - apiGroups:
+        - apiextensions.k8s.io
+      kinds:
+        - CustomResourceDefinition
+      clusters:
+        - https://kubernetes.default.svc
+      name: "*monitoring.coreos.com"
