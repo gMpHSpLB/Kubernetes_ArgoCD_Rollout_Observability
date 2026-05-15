@@ -2119,6 +2119,14 @@ argocd-login-local:
 	  echo "ERROR: $(ARGOCD_CLI_BIN) not found or not executable. Run 'make argocd-cli-install' first."; \
 	  exit 1; \
 	fi
+	@echo "Checking ArgoCD configmap (argocd-cm) exists in namespace $(ARGOCD_NAMESPACE)..."
+	@if ! kubectl get configmap argocd-cm -n $(ARGOCD_NAMESPACE) >/dev/null 2>&1; then \
+	  echo "ERROR: configmap 'argocd-cm' not found in namespace '$(ARGOCD_NAMESPACE)'."; \
+	  echo "Make sure ArgoCD is installed and argocd-cm.yaml has been applied:"; \
+	  echo "  - make argocd-install"; \
+	  echo "  - make argocd-config"; \
+	  exit 1; \
+	fi
 	@echo "Starting port-forward to ArgoCD server on localhost:8080..."
 	-kubectl port-forward svc/argocd-server -n $(ARGOCD_NAMESPACE) 8080:443 >/tmp/argocd-pf.log 2>&1 &
 	@echo "Waiting for ArgoCD server port-forward to be ready..."
