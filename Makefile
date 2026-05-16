@@ -1977,7 +1977,8 @@ argocd-install:
 # 2) Install ArgoCD (stable manifests include ApplicationSet controller)
 	kubectl apply -n $(ARGOCD_NAMESPACE) --server-side --force-conflicts -f $(ARGOCD_MANIFEST_URL)
 # 3) Wait for all ArgoCD pods to be ready:
-	kubectl wait --for=condition=Ready pods --all -n $(ARGOCD_NAMESPACE) --timeout=300s
+	- kubectl wait --for=condition=Ready pods --all -n $(ARGOCD_NAMESPACE) --timeout=300s || \
+	  echo "Warning: ArgoCD pods not all Ready within timeout; will continue and check status."
 # You should see pods like:
 # 	argocd-server
 # 	argocd-repo-server
@@ -2058,7 +2059,8 @@ k8s-monitoring-crds-apply:
 .PHONY: argocd-config
 argocd-config:
 	kubectl apply -f gitops/argocd/argocd-cm.yaml
-	kubectl rollout restart statefulset argocd-application-controller -n $(ARGOCD_NAMESPACE)
+	-kubectl rollout restart statefulset argocd-application-controller -n $(ARGOCD_NAMESPACE) || \
+	  echo "Warning: application-controller restart already in progress; continuing."
 
 # Full bootstrap from scratch, 
 # From a clean Minikube: make k8s-bootstrap-argocd
@@ -2068,6 +2070,8 @@ k8s-bootstrap-argocd:
 	$(MAKE) argocd-rbac
 	$(MAKE) argocd-repo-https-secret
 	$(MAKE) argocd-config
+	$(MAKE) k8s-monitoring-crds-apply
+	$(MAKE) k8s-namespaces-apply           # includes monitoring namespace
 	$(MAKE) argocd-apply-appsets
 	$(MAKE) argocd-apply-cluster-monitoring-appset
 	$(MAKE) argocd-list-apps
@@ -2080,13 +2084,18 @@ k8s-bootstrap-argocd:
 #   be argocd in the current directory).
 # Mark it executable.
 # Run ./argocd version --client to verify.
+# The if [ ! -x ... ] guard ensures you only download once; subsequent make argocd-cli-install calls just print the client version.
 .PHONY: argocd-cli-install
 argocd-cli-install:
-	mkdir -p bin
-	curl -sSL -o $(ARGOCD_CLI_BIN) "$(ARGOCD_CLI_URL)"
-	chmod +x $(ARGOCD_CLI_BIN)
-	# Put it in PATH if needed; on WSL you can keep it in repo and call ./argocd
-	$(ARGOCD_CLI_BIN) version --client
+	@mkdir -p bin
+	@if [ ! -x "$(ARGOCD_CLI_BIN)" ]; then \
+	  echo "argocd CLI not found at $(ARGOCD_CLI_BIN); downloading..."; \
+	  curl -sSL -o "$(ARGOCD_CLI_BIN)" "$(ARGOCD_CLI_URL)"; \
+	  chmod +x "$(ARGOCD_CLI_BIN)"; \
+	else \
+	  echo "argocd CLI already present at $(ARGOCD_CLI_BIN); skipping download."; \
+	fi
+	@"$(ARGOCD_CLI_BIN)" version --client
 
 # ---- ArgoCD CLI login (local Minikube) --------------------------------------
 # Make targets to sync via ArgoCD (not Helm)
@@ -2158,9 +2167,12 @@ argocd-login-local:
 .PHONY: argocd-sync-dev
 argocd-sync-dev: argocd-login-local
 	# Cancel any leftover operations so sync can start cleanly
-	-$(ARGOCD_CLI_BIN) app terminate-op myapp-monitoring-dev
-	-$(ARGOCD_CLI_BIN) app terminate-op myapp-logging-dev
-	-$(ARGOCD_CLI_BIN) app terminate-op myapp-dev
+	- $(ARGOCD_CLI_BIN) app terminate-op myapp-monitoring-dev || \
+	echo "No running operation on myapp-monitoring-dev (or insufficient permission)."
+	- $(ARGOCD_CLI_BIN) app terminate-op myapp-logging-dev || \
+	echo "No running operation on myapp-logging-dev (or insufficient permission)."
+	- $(ARGOCD_CLI_BIN) app terminate-op myapp-dev || \
+	echo "No running operation on myapp-dev (or insufficient permission)."
 
 	# Sync apps with explicit timeouts so they can't hang forever
 	$(ARGOCD_CLI_BIN) app sync myapp-monitoring-dev --timeout 300 || echo "Warning: sync myapp-monitoring-dev returned non-zero (possibly already synced)."
@@ -2173,35 +2185,51 @@ argocd-sync-dev: argocd-login-local
 
 .PHONY: argocd-sync-staging
 argocd-sync-staging: argocd-login-local
-	# Cancel any leftover operations so sync can start cleanly
-	-$(ARGOCD_CLI_BIN) app terminate-op myapp-monitoring-staging
-	-$(ARGOCD_CLI_BIN) app terminate-op myapp-logging-staging
-	-$(ARGOCD_CLI_BIN) app terminate-op myapp-staging
+	-$(ARGOCD_CLI_BIN) app terminate-op myapp-monitoring-staging || \
+	  echo "No running operation on myapp-monitoring-staging (or insufficient permission)."
+	-$(ARGOCD_CLI_BIN) app terminate-op myapp-logging-staging || \
+	  echo "No running operation on myapp-logging-staging (or insufficient permission)."
+	-$(ARGOCD_CLI_BIN) app terminate-op myapp-staging || \
+	  echo "No running operation on myapp-staging (or insufficient permission)."
 
 	$(ARGOCD_CLI_BIN) app sync myapp-monitoring-staging --timeout 300 || echo "Warning: sync myapp-monitoring-staging returned non-zero (possibly already synced)."
 	$(ARGOCD_CLI_BIN) app sync myapp-logging-staging --timeout 300 || echo "Warning: sync myapp-logging-staging returned non-zero (possibly already synced)."
-	$(ARGOCD_CLI_BIN) app sync myapp-staging --timeout 300 || echo "Warning: sync myapp-logging-staging returned non-zero (possibly already synced)."
+	$(ARGOCD_CLI_BIN) app sync myapp-staging --timeout 300 || echo "Warning: sync myapp-staging returned non-zero (possibly already synced)."
 	$(ARGOCD_CLI_BIN) app wait myapp-monitoring-staging myapp-logging-staging myapp-staging \
 	  --health --timeout 300 || echo "Warning: argocd app wait timed out; relying on kubectl readiness checks."
 
 .PHONY: argocd-sync-prod
 argocd-sync-prod: argocd-login-local
-	-$(ARGOCD_CLI_BIN) app terminate-op myapp-monitoring-prod
-	-$(ARGOCD_CLI_BIN) app terminate-op myapp-logging-prod
-	-$(ARGOCD_CLI_BIN) app terminate-op myapp-prod
+	-$(ARGOCD_CLI_BIN) app terminate-op myapp-monitoring-prod || \
+	  echo "No running operation on myapp-monitoring-prod (or insufficient permission)."
+	-$(ARGOCD_CLI_BIN) app terminate-op myapp-logging-prod || \
+	  echo "No running operation on myapp-logging-prod (or insufficient permission)."
+	-$(ARGOCD_CLI_BIN) app terminate-op myapp-prod || \
+	  echo "No running operation on myapp-prod (or insufficient permission)."
 
-	$(ARGOCD_CLI_BIN) app sync myapp-monitoring-prod --timeout 300 || echo "Warning: sync myapp-logging-prod returned non-zero (possibly already synced)."
+	$(ARGOCD_CLI_BIN) app sync myapp-monitoring-prod --timeout 300 || echo "Warning: sync myapp-monitoring-prod returned non-zero (possibly already synced)."
 	$(ARGOCD_CLI_BIN) app sync myapp-logging-prod --timeout 300 || echo "Warning: sync myapp-logging-prod returned non-zero (possibly already synced)."
-	$(ARGOCD_CLI_BIN) app sync myapp-prod --timeout 300 || echo "Warning: sync myapp-logging-prod returned non-zero (possibly already synced)."
+	$(ARGOCD_CLI_BIN) app sync myapp-prod --timeout 300 || echo "Warning: sync myapp-prod returned non-zero (possibly already synced)."
 	$(ARGOCD_CLI_BIN) app wait myapp-monitoring-prod myapp-logging-prod myapp-prod \
 	  --health --timeout 600 || echo "Warning: argocd app wait timed out; relying on kubectl readiness checks."
 
-# Sync per env using the generated Application names
-# cluster-monitoring-infra is synced,
+# This does three things:
+# 	- Tries to terminate any running operation first (ignored if none).
+# 	- Syncs with a timeout so it cannot hang forever.
+# 	- Waits for the app to become Healthy, but does not kill your whole 
+#     Make if it times out.
 .PHONY: argocd-sync-cluster-monitoring-dev
 argocd-sync-cluster-monitoring-dev: argocd-login-local
-	$(ARGOCD_CLI_BIN) app sync cluster-monitoring-infra-dev
-	$(ARGOCD_CLI_BIN) app wait cluster-monitoring-infra-dev --health --timeout 600
+	# Ensure no previous operation is stuck
+	- $(ARGOCD_CLI_BIN) app terminate-op cluster-monitoring-infra-dev || \
+	  echo "No running operation to terminate on cluster-monitoring-infra-dev."
+
+	# Sync and wait
+	$(ARGOCD_CLI_BIN) app sync cluster-monitoring-infra-dev --timeout 600 || \
+	  echo "Warning: sync cluster-monitoring-infra-dev returned non-zero (possibly due to previous operations)."
+
+	$(ARGOCD_CLI_BIN) app wait cluster-monitoring-infra-dev --health --timeout 600 || \
+	  echo "Warning: argocd app wait timed out; relying on kubectl readiness checks."
 
 .PHONY: argocd-sync-cluster-monitoring-staging
 argocd-sync-cluster-monitoring-staging: argocd-login-local
@@ -2264,6 +2292,99 @@ k8s-smoke-dev-argocd: ## Full DEV smoke using ArgoCD (no Helm deploys)
 	$(MAKE) k8s-http-smoke-dev
 	@echo "End-to-end DEV ArgoCD smoke completed."
 
+# This keeps the same interface: you can export MYAPP_IMAGE to use a prebuilt image, or let the Makefile build $(LOCAL_MYAPP_IMAGE_DEV).
+# Argo CD gets image.fullName=<resolved> so you’re not hardcoding tags in values-myapp.yaml.
+# The Secret is created through the same create-secrets target, so myapp-secret exists and the pod no longer hits Error: secret "myapp-secret" not found.
+.PHONY: k8s-argocd-dev-local
+k8s-argocd-dev-local: ensure-minikube argocd-cli-install
+	@echo "Checking minikube status..."
+	$(MAKE) ensure-minikube
+
+	@echo "Creating myapp-secret for dev (myapp-dev namespace)..."
+	$(MAKE) create-secrets \
+		K8S_NAMESPACE=myapp-dev \
+		K8_DB_HOST=localhost \
+		K8_DB_PORT=5432 \
+		K8_DB_NAME=mydb \
+		K8_DB_USER=myuser \
+		K8_DB_PASSWORD=mypassword \
+		K8_UPTRACE_TOKEN=$(UPTRACE_TOKEN) \
+		K8_UPTRACE_DSN=$(UPTRACE_DSN)
+
+	@echo "Resolving image for ArgoCD DEV..."
+	@if [ -n "$$MYAPP_IMAGE" ]; then \
+		IMAGE="$$MYAPP_IMAGE"; \
+		echo "Using provided MYAPP_IMAGE=$$IMAGE"; \
+	else \
+		echo "MYAPP_IMAGE not set, building and using local dev image $(LOCAL_MYAPP_IMAGE_DEV)"; \
+		$(MAKE) build-myapp-dev-local; \
+		IMAGE="$(LOCAL_MYAPP_IMAGE_DEV)"; \
+	fi; \
+	echo "Pointing ArgoCD myapp-dev to image $$IMAGE..."; \
+	$(ARGOCD_CLI_BIN) app set myapp-dev -p image.fullName="$$IMAGE"
+
+	$(MAKE) k8s-smoke-dev-argocd
+
+.PHONY: k8s-argocd-staging-local
+k8s-argocd-staging-local: ensure-minikube argocd-cli-install
+	@echo "Checking minikube status..."
+	$(MAKE) ensure-minikube
+
+	@echo "Creating myapp-secret for staging (myapp-staging namespace)..."
+	$(MAKE) create-secrets \
+		K8S_NAMESPACE=myapp-staging \
+		K8_DB_HOST=localhost \
+		K8_DB_PORT=5432 \
+		K8_DB_NAME=mydb \
+		K8_DB_USER=myuser \
+		K8_DB_PASSWORD=mypassword \
+		K8_UPTRACE_TOKEN=$(UPTRACE_TOKEN) \
+		K8_UPTRACE_DSN=$(UPTRACE_DSN)
+
+	@echo "Resolving image for ArgoCD STAGING..."
+	@if [ -n "$$MYAPP_IMAGE" ]; then \
+		IMAGE="$$MYAPP_IMAGE"; \
+		echo "Using provided MYAPP_IMAGE=$$IMAGE"; \
+	else \
+		echo "MYAPP_IMAGE not set, building and using local staging image $(LOCAL_MYAPP_IMAGE_STAGING)"; \
+		$(MAKE) build-myapp-staging-local; \
+		IMAGE="$(LOCAL_MYAPP_IMAGE_STAGING)"; \
+	fi; \
+	echo "Pointing ArgoCD myapp-staging to image $$IMAGE..."; \
+	$(ARGOCD_CLI_BIN) app set myapp-staging -p image.fullName="$$IMAGE"
+
+	$(MAKE) k8s-smoke-staging-argocd
+
+.PHONY: k8s-argocd-prod-local
+k8s-argocd-prod-local: ensure-minikube argocd-cli-install
+	@echo "Checking minikube status..."
+	$(MAKE) ensure-minikube
+
+	@echo "Creating myapp-secret for prod (myapp-prod namespace)..."
+	$(MAKE) create-secrets \
+		K8S_NAMESPACE=myapp-prod \
+		K8_DB_HOST=localhost \
+		K8_DB_PORT=5432 \
+		K8_DB_NAME=mydb \
+		K8_DB_USER=myuser \
+		K8_DB_PASSWORD=mypassword \
+		K8_UPTRACE_TOKEN=$(UPTRACE_TOKEN) \
+		K8_UPTRACE_DSN=$(UPTRACE_DSN)
+
+	@echo "Resolving image for ArgoCD PROD..."
+	@if [ -n "$$MYAPP_IMAGE" ]; then \
+		IMAGE="$$MYAPP_IMAGE"; \
+		echo "Using provided MYAPP_IMAGE=$$IMAGE"; \
+	else \
+		echo "MYAPP_IMAGE not set, building and using local prod image $(LOCAL_MYAPP_IMAGE_PROD)"; \
+		$(MAKE) build-myapp-prod-local; \
+		IMAGE="$(LOCAL_MYAPP_IMAGE_PROD)"; \
+	endif; \
+	echo "Pointing ArgoCD myapp-prod to image $$IMAGE..."; \
+	$(ARGOCD_CLI_BIN) app set myapp-prod -p image.fullName="$$IMAGE"
+
+	$(MAKE) k8s-smoke-prod-argocd
+
 # Staging: ArgoCD‑driven smoke
 # 	- k8s-logging-staging-secrets-soft is still fine; it just ensures 
 #     staging Loki secrets exist before/after ArgoCD sync.
@@ -2312,28 +2433,22 @@ k8s-namespaces-apply:
 #  - From clean cluster: make k8s-from-scratch-dev-argocd
 #  - Day-to-day: just make k8s-smoke-dev-argocd (no reinstall/rebootstrapping).
 .PHONY: k8s-from-scratch-dev-argocd
-k8s-from-scratch-dev-argocd:
+k8s-from-scratch-dev-argocd: ensure-minikube
 	$(MAKE) argocd-cli-install
 	$(MAKE) k8s-bootstrap-argocd
-	$(MAKE) k8s-monitoring-crds-apply
-	$(MAKE) k8s-namespaces-apply           # includes monitoring namespace
 	$(MAKE) argocd-sync-cluster-monitoring-dev
 	$(MAKE) k8s-smoke-dev-argocd
 
 .PHONY: k8s-from-scratch-staging-argocd
-k8s-from-scratch-staging-argocd:
+k8s-from-scratch-staging-argocd: ensure-minikube
 	$(MAKE) argocd-cli-install
 	$(MAKE) k8s-bootstrap-argocd
-	$(MAKE) k8s-monitoring-crds-apply
-	$(MAKE) k8s-namespaces-apply
 	$(MAKE) argocd-sync-cluster-monitoring-staging
 	$(MAKE) k8s-smoke-staging-argocd
 
 .PHONY: k8s-from-scratch-prod-argocd
-k8s-from-scratch-prod-argocd:
+k8s-from-scratch-prod-argocd: ensure-minikube
 	$(MAKE) argocd-cli-install
 	$(MAKE) k8s-bootstrap-argocd
-	$(MAKE) k8s-monitoring-crds-apply
-	$(MAKE) k8s-namespaces-apply
 	$(MAKE) argocd-sync-cluster-monitoring-prod
 	$(MAKE) k8s-smoke-prod-argocd
