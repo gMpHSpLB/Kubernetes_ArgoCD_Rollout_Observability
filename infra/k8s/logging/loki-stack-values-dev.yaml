@@ -70,4 +70,4 @@ promtail: # Configuration for Promtail, the log shipping agent.
       memory: "256Mi" # Caps memory at 256 MiB
   config: # Promtail-specific runtime config
     clients: # Defines where Promtail sends logs
-      - url: http://loki.logging.svc:3100/loki/api/v1/push # Promtail pushes log streams to Loki’s HTTP push endpoint on port 3100. In Kubernetes, http://loki usually resolves to the Loki service name in the same namespace.
+      - url: http://myapp-logging-dev-loki.logging.svc:3100/loki/api/v1/push # Promtail pushes log streams to Loki’s HTTP push endpoint on port 3100. In Kubernetes, http://loki usually resolves to the Loki service name in the same namespace.

@@ -188,7 +188,7 @@ grafana:
     - name: loki
       type: loki # declares this as a Loki datasource.
       access: proxy # means Grafana proxies queries to Loki from the server side, which is standard in Kubernetes.
-      url: http://loki-staging.logging.svc:3100 # must match the Loki service name/namespace; with helm upgrade --install loki ... -n logging the service will be loki.logging.svc:3100 by default
+      url: http://myapp-logging-staging-loki.logging.svc:3100 # must match the Loki service name/namespace; with helm upgrade --install loki ... -n logging the service will be loki.logging.svc:3100 by default
       isDefault: false
       jsonData:
         maxLines: 1000
