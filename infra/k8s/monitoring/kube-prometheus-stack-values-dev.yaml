@@ -1,118 +1,43 @@
-# This YAML is a Helm values file for the 
-# kube-prometheus-stack chart, used to deploy and 
-# tune a full Kubernetes monitoring stack: Prometheus, 
-# Alertmanager, Grafana, and the Prometheus Operator. 
-# It is meant for a dev environment baseline, where you 
-# want useful monitoring with modest resource usage, and 
-# then tighter controls in staging or production.
-#
-# What it does
-# kube-prometheus-stack bundles the standard Kubernetes 
-# monitoring pieces into one installable stack, including 
-# Prometheus, Grafana, Alertmanager, and the operator that 
-# manages Kubernetes monitoring CRDs like ServiceMonitor, 
-# PodMonitor, and PrometheusRule.
-#
-# The main use case is:
-#   - collect metrics from your cluster and apps,
-#   - store them in Prometheus,
-#   - visualize them in Grafana,
-#   - and send alerts through Alertmanager.
-#
-# This file customizes that stack for development by 
-# setting resource limits, retention, scrape frequency, 
-# and Grafana access settings
-#
-# This section configures the Prometheus Operator, the controller 
-# that watches Kubernetes resources and turns them into monitoring 
-# configuration automatically.
-# Use case: keep the operator lightweight in dev while preventing 
-# it from consuming too much node capacity.
-#
-# Why this is useful
-# This file gives you a repeatable monitoring baseline for a 
-# dev cluster. It makes monitoring part of your infrastructure code, 
-# so you can version it in Git, review changes, and apply the same 
-# setup consistently.
-#
-# It is also a good starting point for environment-specific tuning:
-# dev: lower resources, shorter retention, simple credentials.
-# staging: tighter alerting, stronger auth, perhaps longer retention.
-# prod: stronger secrets handling, ingress/TLS, higher resource limits, 
-# better selectors and alert routing.
-#
-# Practical example
-# If your app exposes a /metrics endpoint and you create a ServiceMonitor, 
-# Prometheus will discover it, scrape it every 15 seconds, store the samples 
-# for 15 days, and you can build dashboards in Grafana and alerts in Alertmanager 
-# from the same data.
-# A common dev workflow is: deploy this stack, expose your app metrics, verify 
-# Prometheus targets are healthy, import a dashboard in Grafana, and then test 
-# one alert rule to confirm Alertmanager works.
+---
 global:
   environment: dev
 crds:
   enabled: false
 prometheusOperator:
-  resources: #  defines how much CPU and memory the operator can use.
-    requests: # the minimum guaranteed resources Kubernetes reserves for it.
-      cpu: "100m" # means 0.1 CPU core. Minimum CPU reserved for the operator controller.
-      memory: "256Mi" # means 256 mebibytes. Minimum memory reserved for reconciliation loops.
-    limits: # the maximum the pod is allowed to use.
-      cpu: "500m" # means up to 0.5 CPU core. Hard cap to prevent noisy-neighbor impact on the node.
-      memory: "512Mi" # means up to 512 mebibytes. Prevents the operator from growing unbounded.
-
-# Use case: ensure Prometheus has enough headroom to scrape 
-# your cluster without being starved, but still stays bounded 
-# in dev.
-# This section configures the main Prometheus server, which 
-# scrapes and stores metrics.
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
 prometheus:
-  prometheusSpec: # settings for the actual Prometheus instance.
+  prometheusSpec:
     resources:
-      requests: # reserves enough resources for normal scraping and query load.
-        cpu: "200m" # Baseline CPU for scraping, TSDB housekeeping, and queries.
-        memory: "512Mi" # Baseline memory for short-term dev monitoring workloads.
-      limits: # caps usage.
-        cpu: "1000m" #  allows up to 1 full CPU core. Max one full CPU core in dev
-        memory: "1Gi" # allows up to 1 GiB of RAM. Enough for moderate dev scraping volume.
-    # Use case: enough history for debugging trends in dev, while keeping storage cost and disk usage reasonable.
-    retention: 15d # Keeps metrics for 15 days. Older data is automatically removed.
-    # These control how Prometheus selects monitoring resources:
-    # In practice, this means Prometheus will not rely only on Helm’s default 
-    # selector behavior; it will use explicit selector behavior 
-    # from your release configuration instead. This is important 
-    # when you want Prometheus to discover ServiceMonitor, PodMonitor, 
-    # and PrometheusRule objects reliably across your monitoring setup.
-    # Use case: avoid confusion where monitors or rules exist but Prometheus 
-    # does not pick them up because selector behavior is too restrictive 
-    # or implicit.
-    serviceMonitorSelectorNilUsesHelmValues: false # Avoid relying on implicit Helm selector defaults.
-    podMonitorSelectorNilUsesHelmValues: false # Explicit monitor discovery behavior.
-    ruleSelectorNilUsesHelmValues: false # Explicit rule discovery behavior.
-    # Use case: good for dev, because you get more granular 
-    # metrics and faster feedback when debugging. 
-    # In production, teams sometimes choose a longer interval 
-    # to reduce load depending on scale.
-    scrapeInterval: "15s" # Prometheus scrapes targets every 15 seconds.  High-frequency scraping for quick dev feedback.
-# This section configures Alertmanager, which receives alerts from Prometheus 
-# and routes them to email, Slack, PagerDuty, or other receivers.
-# Use case: you can test alerting in dev and validate alert routing before production.
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+    retention: 15d
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    scrapeInterval: "15s"
 alertmanager:
   enabled: true
   alertmanagerSpec:
-    resources: # Use case: keep alerting available without over-allocating resources in a non-production cluster.
+    resources:
       requests:
-        cpu: "50m" # enough for basic dev alert routing. Small footprint suitable for dev.
-        memory: "128Mi" # enough for basic dev alert routing.
-      limits: # Limits cap
+        cpu: "50m"
+        memory: "128Mi"
+      limits:
         cpu: "200m"
         memory: "256Mi"
-# This section configures Grafana, the dashboarding tool 
-# used to visualize Prometheus metrics.
 grafana:
-  adminUser: "admin"
-  adminPassword: "admin"
+  adminUser: admin
+  adminPassword: admin
   service:
     type: ClusterIP
   ingress:
@@ -120,7 +45,6 @@ grafana:
   rbac:
     create: true
     pspEnabled: false
-
   grafana.ini:
     auth:
       disable_login_form: false
@@ -130,34 +54,22 @@ grafana:
       default_home_dashboard_path: /var/lib/grafana/dashboards/home.json
     security:
       allow_embedding: true
-
-  additionalDataSources:
-    - name: loki
-      type: loki
-      access: proxy
-      url: http://myapp-logging-dev-loki.logging.svc:3100
-      isDefault: false
-      jsonData:
-        maxLines: 1000
-        timeout: 60
-
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1
       providers:
-        - name: 'infra-dev'
+        - name: infra-dev
           orgId: 1
-          folder: 'infra-dev'
+          folder: infra-dev
           type: file
           options:
             path: /var/lib/grafana/dashboards/infra
-        - name: 'myapp-dev'
+        - name: myapp-dev
           orgId: 1
-          folder: 'myapp-dev'
+          folder: myapp-dev
           type: file
           options:
             path: /var/lib/grafana/dashboards/myapp
-
   dashboardsConfigMaps:
     infra: grafana-dashboards-infra-dev
     myapp: grafana-dashboards-myapp-dev

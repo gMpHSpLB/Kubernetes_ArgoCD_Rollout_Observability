@@ -25,7 +25,7 @@ loki:
     retention_period: 7d
 
 grafana:
-  enabled: false  # we use kube-prometheus-stack Grafana
+  enabled: false  # IMPORTANT: no Grafana from loki-stack
 
 promtail:
   enabled: true
@@ -39,3 +39,4 @@ promtail:
   config:
     clients:
       - url: http://myapp-logging-dev-loki.logging.svc:3100/loki/api/v1/push
+

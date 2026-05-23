@@ -171,7 +171,8 @@ ARGOCD_CLI_BIN ?= bin/argocd
 ARGOCD_CLI_URL ?= https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
 # ArgoCD CLI login (local Minikube)
 # Set ARGOCD_SERVER to the service, not localhost
-ARGOCD_SERVER ?= localhost:8080
+ARGOCD_PORT ?= 8080
+ARGOCD_SERVER ?= localhost:$(ARGOCD_PORT)
 ARGOCD_USERNAME ?= admin
 # For local dev, we often disable TLS verification for the CLI.
 ARGOCD_INSECURE ?= true
@@ -2599,6 +2600,16 @@ k8s-argocd-prod-local: ensure-minikube argocd-cli-install argocd-login-local
 	$(ARGOCD_CLI_BIN) app set myapp-prod -p image.fullName="$$IMAGE"
 
 	$(MAKE) k8s-smoke-prod-argocd
+
+# ARGOCD_PORT ?= 8080 lets you override the port on the command line.
+# The @ silences the command echo, so you only see the status line.
+# make argocd-port-forward-status          # checks port 8080
+# make argocd-port-forward-status ARGOCD_PORT=9000   # checks port 9000
+.PHONY: argocd-port-forward-status
+argocd-port-forward-status:
+	@ss -ltn | grep -q ':$(ARGOCD_PORT) ' && \
+	  echo "Argo CD port-forward on localhost:$(ARGOCD_PORT): RUNNING" || \
+	  echo "Argo CD port-forward on localhost:$(ARGOCD_PORT): NOT RUNNING"
 
 # Staging: ArgoCD‑driven smoke
 # 	- k8s-logging-staging-secrets-soft is still fine; it just ensures 

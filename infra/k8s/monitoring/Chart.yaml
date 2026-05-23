@@ -1,11 +1,12 @@
 # infra/k8s/monitoring/Chart.yaml
+---
 apiVersion: v2
 name: cluster-monitoring-infra
-description: Cluster-level monitoring stack (kube-prometheus-stack + myapp extras)
+description: Cluster-level (kube-prometheus-stack + myapp extras)
 type: application
 version: 0.1.0
-
+# choose a tested version; you can pin to what you already use via helm CLI
 dependencies:
   - name: kube-prometheus-stack
-    version: "85.0.3"  # choose a tested version; you can pin to what you already use via helm CLI
+    version: "85.0.3"
     repository: "https://prometheus-community.github.io/helm-charts"
