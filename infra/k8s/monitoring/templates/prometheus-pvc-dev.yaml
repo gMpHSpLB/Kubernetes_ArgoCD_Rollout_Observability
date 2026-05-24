@@ -1,0 +1,17 @@
+{{- if eq .Values.global.environment "dev" }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cluster-monitoring-infra-d-prometheus
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/instance: cluster-monitoring-infra-dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ default "10Gi" .Values.prometheus.storage.size }}
+  storageClassName: {{ default "standard" .Values.prometheus.storageClassName }}
+{{- end }}

@@ -13,6 +13,10 @@ prometheusOperator:
       cpu: "500m"
       memory: "512Mi"
 prometheus:
+  image: prom/prometheus:v2.54.0
+  storage:
+    size: 10Gi
+  storageClassName: standard
   prometheusSpec:
     resources:
       requests:

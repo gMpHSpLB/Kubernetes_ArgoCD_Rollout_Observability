@@ -1,0 +1,19 @@
+{{- if eq .Values.global.environment "dev" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: cluster-monitoring-infra-d-prometheus
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/instance: cluster-monitoring-infra-dev
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/instance: cluster-monitoring-infra-dev
+{{- end }}
