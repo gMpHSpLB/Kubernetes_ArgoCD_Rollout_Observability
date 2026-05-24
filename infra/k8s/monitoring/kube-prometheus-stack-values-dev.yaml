@@ -1,6 +1,7 @@
 ---
 global:
   environment: dev
+  
 crds:
   enabled: false
 prometheusOperator:
