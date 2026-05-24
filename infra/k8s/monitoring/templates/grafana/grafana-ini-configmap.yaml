@@ -1,0 +1,41 @@
+{{- if eq .Values.global.environment "dev" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-infra-dev-grafana-ini
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: cluster-monitoring-infra-dev
+data:
+  grafana.ini: |
+    [server]
+    domain = {{ .Values.grafana.domain | default "grafana-dev.local" }}
+    root_url = %(protocol)s://%(domain)s/
+    serve_from_sub_path = false
+
+    [security]
+    allow_embedding = false
+    cookie_secure = false
+    cookie_samesite = lax
+
+    [auth]
+    disable_login_form = false
+    disable_signout_menu = false
+
+    [auth.anonymous]
+    enabled = false
+
+    [auth.generic_oauth]
+    enabled = false
+
+    [database]
+    type = {{ .Values.grafana.database.type | default "sqlite3" }}
+    {{- if eq (.Values.grafana.database.type | default "sqlite3") "sqlite3" }}
+    path = grafana.db
+    {{- end }}
+
+    [log]
+    mode = console
+    level = info
+{{- end }}

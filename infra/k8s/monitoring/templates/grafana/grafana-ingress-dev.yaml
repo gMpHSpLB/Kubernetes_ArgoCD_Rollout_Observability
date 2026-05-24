@@ -1,0 +1,27 @@
+{{- if and (eq .Values.global.environment "dev") .Values.grafana.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cluster-monitoring-infra-dev-grafana
+  namespace: monitoring
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.grafana.ingress.className | default "nginx" }}
+spec:
+  rules:
+    - host: {{ .Values.grafana.domain | default "grafana-dev.local" }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cluster-monitoring-infra-dev-grafana
+                port:
+                  number: 80
+  {{- if .Values.grafana.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.grafana.domain }}
+      secretName: {{ .Values.grafana.ingress.tls.secretName }}
+  {{- end }}
+{{- end }}

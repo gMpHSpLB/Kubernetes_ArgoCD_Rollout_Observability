@@ -41,16 +41,27 @@ alertmanager:
         cpu: "200m"
         memory: "256Mi"
 grafana:
-  adminUser: admin
-  adminPassword: admin
+  security:
+    adminUserSecret: cluster-monitoring-infra-dev-grafana
+    adminUserKey: admin
+    adminPasswordKey: admin
   image: grafana/grafana:11.0.0
   storage:
     size: 5Gi
   storageClassName: standard
   service:
     type: ClusterIP
+  domain: grafana-dev.local         # host for Grafana Ingress
   ingress:
-    enabled: false
+    enabled: true
+    className: nginx                # matches your myapp Ingress
+    tls:
+      enabled: false                # dev: no TLS yet; prod will enable
+      secretName: grafana-dev-tls   # placeholder for future
+      
+  database:
+    type: sqlite                    # dev: use SQLite with PVC
+    # prod/staging can override to postgres/mysql later via their values files
   rbac:
     create: true
     pspEnabled: false

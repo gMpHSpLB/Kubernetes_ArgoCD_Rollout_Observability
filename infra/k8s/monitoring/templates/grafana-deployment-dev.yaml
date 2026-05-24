@@ -4,13 +4,8 @@ kind: Deployment
 metadata:
   name: cluster-monitoring-infra-dev-grafana
   namespace: monitoring
-  labels:
-    app.kubernetes.io/name: grafana
-    app.kubernetes.io/instance: cluster-monitoring-infra-dev
-    app.kubernetes.io/component: grafana
 spec:
   replicas: 1
-  revisionHistoryLimit: 3
   selector:
     matchLabels:
       app.kubernetes.io/name: grafana
@@ -22,30 +17,31 @@ spec:
         app.kubernetes.io/instance: cluster-monitoring-infra-dev
     spec:
       serviceAccountName: cluster-monitoring-infra-grafana
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        runAsGroup: 472
+        fsGroup: 472
       containers:
         - name: grafana
           image: {{ .Values.grafana.image | default "grafana/grafana:11.0.0" }}
           imagePullPolicy: IfNotPresent
-          ports:
-            - name: http
-              containerPort: 3000
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           env:
             - name: GF_SECURITY_ADMIN_USER
               valueFrom:
                 secretKeyRef:
-                  name: cluster-monitoring-infra-dev-grafana
-                  key: admin-user
+                  name: {{ .Values.grafana.security.adminUserSecret }}
+                  key: {{ .Values.grafana.security.adminUserKey }}
             - name: GF_SECURITY_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: cluster-monitoring-infra-dev-grafana
-                  key: admin-password
-            - name: GF_SERVER_ROOT_URL
-              value: "%(protocol)s://%(domain)s/"
-            - name: GF_AUTH_ANONYMOUS_ENABLED
-              value: "false"
-            - name: GF_USERS_ALLOW_SIGN_UP
-              value: "false"
+                  name: {{ .Values.grafana.security.adminUserSecret }}
+                  key: {{ .Values.grafana.security.adminPasswordKey }}
             - name: GF_PATHS_PROVISIONING
               value: /etc/grafana/provisioning
             - name: GF_PATHS_DATA
@@ -69,27 +65,20 @@ spec:
               mountPath: /var/lib/grafana/dashboards/infra
             - name: grafana-dashboards-myapp
               mountPath: /var/lib/grafana/dashboards/myapp
+            - name: grafana-ini
+              mountPath: /etc/grafana/grafana.ini
+              subPath: grafana.ini
+          ports:
+            - name: http
+              containerPort: 3000
           readinessProbe:
             httpGet:
               path: /api/health
               port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 3
           livenessProbe:
             httpGet:
               path: /api/health
               port: http
-            initialDelaySeconds: 30
-            periodSeconds: 30
-            timeoutSeconds: 5
-          resources:
-            requests:
-              cpu: "200m"
-              memory: "512Mi"
-            limits:
-              cpu: "1"
-              memory: "2Gi"
       volumes:
         - name: grafana-storage
           persistentVolumeClaim:
@@ -108,4 +97,7 @@ spec:
         - name: grafana-dashboards-myapp
           configMap:
             name: grafana-dashboards-myapp-dev
+        - name: grafana-ini
+          configMap:
+            name: cluster-monitoring-infra-dev-grafana-ini
 {{- end }}
