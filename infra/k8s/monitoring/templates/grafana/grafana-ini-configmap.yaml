@@ -30,10 +30,8 @@ data:
     enabled = false
 
     [database]
-    type = {{ .Values.grafana.database.type | default "sqlite3" }}
-    {{- if eq (.Values.grafana.database.type | default "sqlite3") "sqlite3" }}
+    type = sqlite3
     path = grafana.db
-    {{- end }}
 
     [log]
     mode = console

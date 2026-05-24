@@ -60,7 +60,7 @@ grafana:
       secretName: grafana-dev-tls   # placeholder for future
       
   database:
-    type: sqlite                    # dev: use SQLite with PVC
+    type: sqlite3                    # dev: use SQLite with PVC
     # prod/staging can override to postgres/mysql later via their values files
   rbac:
     create: true
