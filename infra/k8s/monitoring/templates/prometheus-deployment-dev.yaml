@@ -2,114 +2,49 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cluster-monitoring-infra-dev-grafana
+  name: cluster-monitoring-infra-d-prometheus
   namespace: monitoring
   labels:
-    app.kubernetes.io/name: grafana
+    app.kubernetes.io/name: prometheus
     app.kubernetes.io/instance: cluster-monitoring-infra-dev
-    app.kubernetes.io/component: grafana
 spec:
   replicas: 1
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app.kubernetes.io/name: grafana
+      app.kubernetes.io/name: prometheus
       app.kubernetes.io/instance: cluster-monitoring-infra-dev
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: grafana
+        app.kubernetes.io/name: prometheus
         app.kubernetes.io/instance: cluster-monitoring-infra-dev
     spec:
-      serviceAccountName: cluster-monitoring-infra-grafana
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 472
-        runAsGroup: 472
-        fsGroup: 472
+      serviceAccountName: cluster-monitoring-infra-d-prometheus
       containers:
-        - name: grafana
-          image: {{ .Values.grafana.image | default "grafana/grafana:11.0.0" }}
+        - name: prometheus
+          image: {{ .Values.prometheus.image | default "prom/prometheus:v2.54.0" }}
           imagePullPolicy: IfNotPresent
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop:
-                - ALL
-          env:
-            - name: GF_SECURITY_ADMIN_USER
-              valueFrom:
-                secretKeyRef:
-                  name: cluster-monitoring-infra-dev-grafana
-                  key: admin-user
-            - name: GF_SECURITY_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: cluster-monitoring-infra-dev-grafana
-                  key: admin-password
-            - name: GF_PATHS_PROVISIONING
-              value: /etc/grafana/provisioning
-            - name: GF_PATHS_DATA
-              value: /var/lib/grafana
-            - name: GF_PATHS_LOGS
-              value: /var/log/grafana
-            - name: GF_PATHS_PLUGINS
-              value: /var/lib/grafana/plugins
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/var/prometheus"
+            - "--storage.tsdb.retention.time={{ .Values.prometheus.prometheusSpec.retention | default "15d" }}"
+            - "--web.enable-lifecycle"
           ports:
             - name: http
-              containerPort: 3000
-          readinessProbe:
-            httpGet:
-              path: /api/health
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 3
-          livenessProbe:
-            httpGet:
-              path: /api/health
-              port: http
-            initialDelaySeconds: 30
-            periodSeconds: 30
-            timeoutSeconds: 5
+              containerPort: 9090
+          resources:
+{{ toYaml .Values.prometheus.prometheusSpec.resources | indent 12 }}
           volumeMounts:
-            - name: grafana-storage
-              mountPath: /var/lib/grafana
-            - name: grafana-logs
-              mountPath: /var/log/grafana
-            - name: grafana-datasource
-              mountPath: /etc/grafana/provisioning/datasources/datasource.yaml
-              subPath: datasource.yaml
-            - name: grafana-dashboards-provisioning
-              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml
-              subPath: dashboards.yaml
-            - name: grafana-dashboards-infra
-              mountPath: /var/lib/grafana/dashboards/infra
-            - name: grafana-dashboards-myapp
-              mountPath: /var/lib/grafana/dashboards/myapp
-            - name: grafana-ini
-              mountPath: /etc/grafana/grafana.ini
-              subPath: grafana.ini
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+            - name: prometheus-storage
+              mountPath: /var/prometheus
       volumes:
-        - name: grafana-storage
+        - name: prometheus-config
+          configMap:
+            name: cluster-monitoring-infra-d-prometheus-config
+        - name: prometheus-storage
           persistentVolumeClaim:
-            claimName: grafana-storage-dev
-        - name: grafana-logs
-          emptyDir: {}
-        - name: grafana-datasource
-          configMap:
-            name: cluster-monitoring-infra-d-grafana-datasource
-        - name: grafana-dashboards-provisioning
-          configMap:
-            name: grafana-dashboards-provisioning-dev
-        - name: grafana-dashboards-infra
-          configMap:
-            name: grafana-dashboards-infra-dev
-        - name: grafana-dashboards-myapp
-          configMap:
-            name: grafana-dashboards-myapp-dev
-        - name: grafana-ini
-          configMap:
-            name: cluster-monitoring-infra-dev-grafana-ini
+            claimName: cluster-monitoring-infra-d-prometheus
 {{- end }}

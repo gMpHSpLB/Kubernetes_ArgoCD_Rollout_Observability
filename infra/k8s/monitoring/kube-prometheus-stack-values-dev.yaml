@@ -1,17 +1,18 @@
----
 global:
   environment: dev
-  
+
 crds:
   enabled: false
+
 prometheusOperator:
   resources:
     requests:
-      cpu: "100m"
-      memory: "256Mi"
+      cpu: 100m
+      memory: 256Mi
     limits:
-      cpu: "500m"
-      memory: "512Mi"
+      cpu: 500m
+      memory: 512Mi
+
 prometheus:
   image: prom/prometheus:v2.54.0
   storage:
@@ -20,26 +21,28 @@ prometheus:
   prometheusSpec:
     resources:
       requests:
-        cpu: "200m"
-        memory: "512Mi"
+        cpu: 200m
+        memory: 512Mi
       limits:
-        cpu: "1000m"
-        memory: "1Gi"
+        cpu: 1000m
+        memory: 1Gi
     retention: 15d
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
-    scrapeInterval: "15s"
+    scrapeInterval: 15s
+
 alertmanager:
   enabled: true
   alertmanagerSpec:
     resources:
       requests:
-        cpu: "50m"
-        memory: "128Mi"
+        cpu: 50m
+        memory: 128Mi
       limits:
-        cpu: "200m"
-        memory: "256Mi"
+        cpu: 200m
+        memory: 256Mi
+
 grafana:
   security:
     adminUserSecret: cluster-monitoring-infra-dev-grafana
@@ -51,17 +54,15 @@ grafana:
   storageClassName: standard
   service:
     type: ClusterIP
-  domain: grafana-dev.local         # host for Grafana Ingress
+  domain: grafana-dev.local
   ingress:
     enabled: true
-    className: nginx                # matches your myapp Ingress
+    className: nginx
     tls:
-      enabled: false                # dev: no TLS yet; prod will enable
-      secretName: grafana-dev-tls   # placeholder for future
-      
+      enabled: false
+      secretName: grafana-dev-tls
   database:
-    type: sqlite3                    # dev: use SQLite with PVC
-    # prod/staging can override to postgres/mysql later via their values files
+    type: sqlite3
   rbac:
     create: true
     pspEnabled: false
@@ -80,7 +81,7 @@ grafana:
       type: loki
       uid: loki
       access: proxy
-      url: http://myapp-logging-dev-loki.logging.svc:3100
+      url: http://myapp-logging-dev-loki.logging:3100
       isDefault: false
       jsonData:
         maxLines: 1000
