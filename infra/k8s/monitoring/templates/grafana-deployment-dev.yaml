@@ -20,11 +20,6 @@ spec:
       labels:
         app.kubernetes.io/name: grafana
         app.kubernetes.io/instance: cluster-monitoring-infra-dev
-      annotations:
-        checksum/datasource: "{{ include (print $.Template.BasePath \"/grafana-datasource-dev.yaml\") . | sha256sum | default \"\" }}"
-        checksum/dashboards-infra: "{{ include (print $.Template.BasePath \"/grafana-dashboards-infra-dev.yaml\") . | sha256sum | default \"\" }}"
-        checksum/dashboards-myapp: "{{ include (print $.Template.BasePath \"/grafana-dashboards-myapp-dev.yaml\") . | sha256sum | default \"\" }}"
-        checksum/dashboards-provisioning: "{{ include (print $.Template.BasePath \"/grafana-dashboards-provisioning-dev.yaml\") . | sha256sum | default \"\" }}"
     spec:
       serviceAccountName: cluster-monitoring-infra-grafana
       securityContext:

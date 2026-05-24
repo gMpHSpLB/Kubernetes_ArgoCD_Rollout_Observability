@@ -38,6 +38,10 @@ alertmanager:
 grafana:
   adminUser: admin
   adminPassword: admin
+  image: grafana/grafana:11.0.0
+  storage:
+    size: 5Gi
+  storageClassName: standard
   service:
     type: ClusterIP
   ingress:

@@ -9,6 +9,6 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: {{ .Values.grafana.storage.size | default "5Gi" }}
-  storageClassName: {{ .Values.grafana.storageClassName | default "standard" }}
+      storage: {{ default "5Gi" .Values.grafana.storage.size }}
+  storageClassName: {{ default "standard" .Values.grafana.storageClassName }}
 {{- end }}
