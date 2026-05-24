@@ -20,13 +20,6 @@ data:
         jsonData:
           timeInterval: "30s"
 
-      - name: Alertmanager
-        type: alertmanager
-        access: proxy
-        url: http://cluster-monitoring-infra-d-alertmanager.monitoring:9093
-        jsonData:
-          implementation: "prometheus"
-
       - name: Loki
         type: loki
         access: proxy
