@@ -24,7 +24,7 @@ spec:
         fsGroup: 472
       containers:
         - name: grafana
-            securityContext:
+          securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
