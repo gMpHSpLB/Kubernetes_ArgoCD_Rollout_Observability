@@ -48,7 +48,6 @@ grafana:
     adminUserSecret: cluster-monitoring-infra-dev-grafana
     adminUserKey: admin-user
     adminPasswordKey: admin-password
-  image: grafana/grafana:11.0.0
   storage:
     size: 5Gi
   storageClassName: standard
@@ -76,16 +75,6 @@ grafana:
     security:
       allow_embedding: true
   enabled: true
-  additionalDataSources:
-    - name: Loki
-      type: loki
-      uid: loki
-      access: proxy
-      url: http://myapp-logging-dev-loki.logging:3100
-      isDefault: false
-      jsonData:
-        maxLines: 1000
-        timeout: 60
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1
