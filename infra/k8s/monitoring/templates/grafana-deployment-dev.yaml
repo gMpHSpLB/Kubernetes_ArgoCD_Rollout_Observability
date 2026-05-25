@@ -24,8 +24,7 @@ spec:
         fsGroup: 472
       containers:
         - name: grafana
-          imagePullPolicy: IfNotPresent
-          securityContext:
+            securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
