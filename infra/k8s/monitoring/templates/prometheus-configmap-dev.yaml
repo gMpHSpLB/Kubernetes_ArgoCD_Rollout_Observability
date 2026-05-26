@@ -75,24 +75,62 @@ data:
             replacement: ${1}
           - action: labelmap
             regex: __meta_kubernetes_service_label_(.+)
-
-      # 5. Fixed: kubernetes-pods (only annotated pods, correct port usage)
+      # 5. kubernetes-pods (excluding Loki; Loki has its own job below)
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
           - role: pod
         relabel_configs:
+          # Only scrape pods with prometheus.io/scrape: "true"
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
             action: keep
             regex: "true"
+          # Exclude Loki pods
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: drop
+            regex: loki
+          # Use prometheus.io/path if present
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
             action: replace
             target_label: __metrics_path__
             regex: (.+)
+          # Use prometheus.io/port if numeric
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
             action: replace
             target_label: __address__
-            regex: (\d+)
+            regex: ([0-9]+)
             replacement: ${1}
+          # Label map
           - action: labelmap
             regex: __meta_kubernetes_pod_label_(.+)
+          # Namespace label
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          # Pod name label
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+      # 6. Loki (explicit job, only port 3100)
+      - job_name: 'loki'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          # Only scrape pods with app=loki
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: loki
+          # Only scrape port 3100
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            action: keep
+            regex: "3100"
+          # Set metrics path
+          - target_label: __metrics_path__
+            replacement: /metrics
+          # Map namespace and pod name
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name      
 {{- end }}
