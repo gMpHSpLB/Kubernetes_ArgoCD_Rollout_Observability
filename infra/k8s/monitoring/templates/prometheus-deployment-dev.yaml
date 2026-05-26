@@ -14,6 +14,8 @@ spec:
     matchLabels:
       app.kubernetes.io/name: prometheus
       app.kubernetes.io/instance: cluster-monitoring-infra-dev
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -30,6 +32,15 @@ spec:
             - "--storage.tsdb.path=/var/prometheus"
             - "--storage.tsdb.retention.time={{ .Values.prometheus.prometheusSpec.retention | default "15d" }}"
             - "--web.enable-lifecycle"
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - wget
+                  - -q
+                  - -O-
+                  - --post-data=""
+                  - http://localhost:9090/-/quit
           ports:
             - name: http
               containerPort: 9090
