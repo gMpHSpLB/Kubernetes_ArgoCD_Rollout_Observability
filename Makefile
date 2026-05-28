@@ -2181,11 +2181,16 @@ argocd-repo-https-secret:
 argocd-rbac:
 	kubectl apply -f gitops/argocd/argocd-rbac-cm.yaml
 
-# What this does:
-# 	Tries to wait 180s.
-# 		If that times out, it checks availableReplicas.
-# 			If availableReplicas is 1, it logs a warning but does not fail the Make target.
-# 			If 0, it fails — that’s a real problem.
+# Key points:
+# argocd-server:
+# 	Times out after 180s.
+# 	If timeout, checks availableReplicas.
+# 	Warns and continues if 1 replica is available.
+# 	Fails hard only if 0 replicas are available.
+# argocd-application-controller:
+# 	Strict: must become ready.
+# 	Timeout increased to 300s to avoid false failures on slow startups.
+# 	This is correct for a production-like flow: if the controller is not ready, you want to fail.
 .PHONY: argocd-restart
 argocd-restart:
 	@echo "Restarting Argo CD server..."
@@ -2202,11 +2207,11 @@ argocd-restart:
 	    echo "argocd-server has $$AVAIL available replica(s); continuing despite timeout."; \
 	  fi; \
 	fi
-
 	@echo "Restarting Argo CD application controller..."
 	sleep 2
 	kubectl rollout restart statefulset argocd-application-controller -n $(ARGOCD_NAMESPACE)
-	kubectl rollout status statefulset argocd-application-controller -n $(ARGOCD_NAMESPACE) --timeout=120s || \
+	# Strict: fail if not ready, but with longer timeout for slow startups
+	kubectl rollout status statefulset argocd-application-controller -n $(ARGOCD_NAMESPACE) --timeout=300s || \
 	  (echo "ERROR: argocd-application-controller rollout timed out" && exit 1)
 
 # Add a CRD bootstrap target
