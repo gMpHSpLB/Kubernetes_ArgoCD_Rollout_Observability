@@ -1,0 +1,13 @@
+# This prevents any future changes (extra exporters, more dashboards, etc.) from overwhelming the cluster.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: monitoring-quota-dev
+  namespace: monitoring
+spec:
+  hard:
+    requests.cpu: "2"       # total requested CPU in this namespace
+    limits.cpu: "3"
+    requests.memory: 3Gi    # total requested memory
+    limits.memory: 4Gi
+    pods: "30"
