@@ -52,10 +52,14 @@ grafana:
     limits:
       cpu: 200m
       memory: 256Mi
-  security:
-    adminUserSecret: cluster-monitoring-infra-dev-grafana
-    adminUserKey: admin-user
-    adminPasswordKey: admin-password
+    # Use your existing secret for admin credentials
+  existingSecret: cluster-monitoring-infra-dev-grafana
+  existingSecretPasswordKey: admin-password
+  existingSecretUserKey: admin-user
+  # security:
+  #   adminUserSecret: cluster-monitoring-infra-dev-grafana
+  #   adminUserKey: admin-user
+  #   adminPasswordKey: admin-password
   storage:
     size: 2Gi        # 5Gi -> 2Gi for dev
   storageClassName: standard
