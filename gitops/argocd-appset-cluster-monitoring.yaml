@@ -58,6 +58,10 @@ spec:
     spec:
       syncPolicy:
         automated: null
+    {{- else if eq .environment "dev" }}
+    spec:
+      syncPolicy:
+        automated: null        
     {{- else }}
     spec:
       syncPolicy:
