@@ -1,3 +1,9 @@
+kubePrometheusStack:
+  admissionWebhooks:
+    enabled: true
+    patch:
+      enabled: false
+      
 global:
   environment: dev
 
