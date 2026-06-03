@@ -11,10 +11,10 @@ spec:
   generators:
     - list:
         elements:
-          - environment: dev
-            namespace: monitoring
-            targetRevision: main
-            valuesFile: "kube-prometheus-stack-values-dev.yaml"
+          # - environment: dev
+          #   namespace: monitoring
+          #   targetRevision: main
+          #   valuesFile: "kube-prometheus-stack-values-dev.yaml"
           - environment: staging
             namespace: monitoring
             targetRevision: main
