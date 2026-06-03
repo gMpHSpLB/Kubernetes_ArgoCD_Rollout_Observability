@@ -1,8 +1,6 @@
-kubePrometheusStack:
-  admissionWebhooks:
-    enabled: true
-    patch:
-      enabled: false
+# kubePrometheusStack:
+#   admissionWebhooks:
+#     enabled: false
       
 global:
   environment: dev
@@ -11,6 +9,8 @@ crds:
   enabled: false
 
 prometheusOperator:
+  admissionWebhooks:
+    enabled: false
   resources:
     requests:
       cpu: 50m
