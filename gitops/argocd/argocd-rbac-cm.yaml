@@ -4,6 +4,8 @@ kind: ConfigMap
 metadata:
   name: argocd-rbac-cm
   namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
 data:
   policy.csv: |
     # Built-in admin role: full access to everything
