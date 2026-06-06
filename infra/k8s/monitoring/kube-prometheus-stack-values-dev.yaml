@@ -81,9 +81,10 @@ grafana:
         cpu: 50m
         memory: 64Mi
   # Use your existing secret for admin credentials (optional)
-  existingSecret: cluster-monitoring-infra-dev-grafana
-  existingSecretPasswordKey: admin-password
-  existingSecretUserKey: admin-user
+  admin:
+    existingSecret: cluster-monitoring-infra-dev-grafana
+    userKey: admin-user
+    passwordKey: admin-password
 
   # For dev: no PVC, use emptyDir
   persistence:
