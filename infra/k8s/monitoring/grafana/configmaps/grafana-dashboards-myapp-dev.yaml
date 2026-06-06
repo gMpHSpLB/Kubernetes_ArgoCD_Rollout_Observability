@@ -1,0 +1,13 @@
+# 
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-myapp-dev
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  myapp-overview.json: |
+    { "id": null, "uid": "myapp-overview", "title": "MyApp Overview (dev)", "tags": ["myapp","dev"], "timezone": "browser", "schemaVersion": 36, "version": 1, "panels": [], "time": { "from": "now-1h", "to": "now" } }
+  myapp-slo.json: |
+    { "id": null, "uid": "myapp-slo", "title": "MyApp SLO (dev)", "tags": ["myapp","slo","dev"], "timezone": "browser", "schemaVersion": 36, "version": 1, "panels": [], "time": { "from": "now-6h", "to": "now" } }

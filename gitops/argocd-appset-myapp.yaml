@@ -16,16 +16,16 @@ spec:
             autoSync: "true"
             targetRevision: main
             myappValuesFile: "../../environments/dev/values-myapp.yaml"
-          - environment: staging
-            namespace: myapp-staging
-            autoSync: "true"
-            targetRevision: main
-            myappValuesFile: "../../environments/staging/values-myapp.yaml"
-          - environment: prod
-            namespace: myapp-prod
-            autoSync: "false"
-            targetRevision: main
-            myappValuesFile: "../../environments/prod/values-myapp.yaml"
+          # - environment: staging
+          #   namespace: myapp-staging
+          #   autoSync: "true"
+          #   targetRevision: main
+          #   myappValuesFile: "../../environments/staging/values-myapp.yaml"
+          # - environment: prod
+          #   namespace: myapp-prod
+          #   autoSync: "false"
+          #   targetRevision: main
+          #   myappValuesFile: "../../environments/prod/values-myapp.yaml"
   template:
     metadata:
       name: myapp-{{.environment}}

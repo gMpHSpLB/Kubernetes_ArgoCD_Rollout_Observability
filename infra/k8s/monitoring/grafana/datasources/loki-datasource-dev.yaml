@@ -1,0 +1,18 @@
+# infra/k8s/monitoring/grafana/datasources/loki-datasource-dev.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-loki-dev
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+data:
+  loki.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://myapp-logging-dev-loki.logging.svc.cluster.local:3100
+        isDefault: false
+        editable: true

@@ -1,0 +1,59 @@
+# Minimal kube-prometheus-stack for minikube
+
+prometheusOperator:
+  admissionWebhooks:
+    enabled: false
+    patch:
+      enabled: false
+  tls:
+    enabled: false
+
+prometheus:
+  enabled: true
+  prometheusSpec:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 300m
+        memory: 512Mi
+    storageSpec: null  # use emptyDir for dev
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+    storage: {}  # use emptyDir
+
+grafana:
+  enabled: true
+  persistence:
+    enabled: false   # no PVC, use emptyDir for dev
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false   # keep ingress out until everything is healthy
+
+kube-state-metrics:
+  enabled: true
+
+prometheus-node-exporter:
+  enabled: true
+  hostRootFsMount:
+    enabled: false   # avoid mount issues in minikube/WSL

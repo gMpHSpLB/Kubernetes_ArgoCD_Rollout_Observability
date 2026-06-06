@@ -1,7 +1,3 @@
-# kubePrometheusStack:
-#   admissionWebhooks:
-#     enabled: false
-      
 global:
   environment: dev
 
@@ -11,6 +7,11 @@ crds:
 prometheusOperator:
   admissionWebhooks:
     enabled: false
+    patch:
+      enabled: false
+  tls:
+    enabled: false
+  hostNetwork: false
   resources:
     requests:
       cpu: 50m
@@ -20,67 +21,70 @@ prometheusOperator:
       memory: 256Mi
 
 prometheus:
-  image: prom/prometheus:v2.54.0
-  storage:
-    size: 5Gi        # 10Gi -> 5Gi for dev
-  storageClassName: standard
+  enabled: true
+  # Do NOT override image here unless you really need to
+  # image: prom/prometheus:v2.54.0
   prometheusSpec:
     resources:
       requests:
-        cpu: 100m    # 200m -> 100m
-        memory: 384Mi  # 512Mi -> 384Mi
+        cpu: 100m
+        memory: 384Mi
       limits:
-        cpu: 500m    # 1000m -> 500m
-        memory: 768Mi # 1Gi -> 768Mi
-    retention: 7d    # 15d -> 7d is enough for dev
+        cpu: 500m
+        memory: 768Mi
+    retention: 7d
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
-    scrapeInterval: 30s  # 15s -> 30s to reduce load
+    scrapeInterval: 30s
+    # Use emptyDir for dev:
+    storageSpec: null
 
 alertmanager:
   enabled: true
   alertmanagerSpec:
     resources:
       requests:
-        cpu: 25m      # 50m -> 25m
-        memory: 64Mi  # 128Mi -> 64Mi
+        cpu: 25m
+        memory: 64Mi
       limits:
-        cpu: 150m     # 200m -> 150m
-        memory: 128Mi # 256Mi -> 128Mi
+        cpu: 150m
+        memory: 128Mi
+    # Use emptyDir for dev:
+    storage: {}
 
 grafana:
   enabled: true
   resources:
     requests:
-      cpu: 50m       # add explicit small requests
+      cpu: 50m
       memory: 128Mi
     limits:
       cpu: 200m
       memory: 256Mi
-    # Use your existing secret for admin credentials
+  # Use your existing secret for admin credentials (optional)
   existingSecret: cluster-monitoring-infra-dev-grafana
   existingSecretPasswordKey: admin-password
   existingSecretUserKey: admin-user
-  # security:
-  #   adminUserSecret: cluster-monitoring-infra-dev-grafana
-  #   adminUserKey: admin-user
-  #   adminPasswordKey: admin-password
-  storage:
-    size: 2Gi        # 5Gi -> 2Gi for dev
-  storageClassName: standard
+
+  # For dev: no PVC, use emptyDir
+  persistence:
+    enabled: false
+
   service:
     type: ClusterIP
-  domain: grafana-dev.local
+
+  # For now, let’s not rely on ingress until core pods are healthy
   ingress:
-    enabled: true
-    className: nginx
-    tls: []          # no TLS for dev
+    enabled: false
+
   database:
     type: sqlite3
+
   rbac:
     create: true
     pspEnabled: false
+
   grafana.ini:
     auth:
       disable_login_form: false
@@ -90,6 +94,7 @@ grafana:
       default_home_dashboard_path: /var/lib/grafana/dashboards/home.json
     security:
       allow_embedding: true
+
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1
@@ -106,6 +111,7 @@ grafana:
           type: file
           options:
             path: /var/lib/grafana/dashboards/myapp
+
   dashboardsConfigMaps:
     infra: grafana-dashboards-infra-dev
     myapp: grafana-dashboards-myapp-dev

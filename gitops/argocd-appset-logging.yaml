@@ -15,14 +15,14 @@ spec:
             namespace: logging
             autoSync: "true"
             targetRevision: main
-          - environment: staging
-            namespace: logging
-            autoSync: "true"
-            targetRevision: main
-          - environment: prod
-            namespace: logging
-            autoSync: "false"
-            targetRevision: main
+          # - environment: staging
+          #   namespace: logging
+          #   autoSync: "true"
+          #   targetRevision: main
+          # - environment: prod
+          #   namespace: logging
+          #   autoSync: "false"
+          #   targetRevision: main
   template:
     metadata:
       name: myapp-logging-{{.environment}}

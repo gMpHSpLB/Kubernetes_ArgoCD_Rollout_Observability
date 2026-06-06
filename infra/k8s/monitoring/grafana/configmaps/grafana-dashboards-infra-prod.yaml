@@ -1,5 +1,4 @@
 # These are plain Kubernetes ConfigMaps with labels so kube‑prometheus‑stack picks them up.
-{{- if eq .Values.global.environment "prod" }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -11,7 +10,6 @@ metadata:
 # file. Value is raw JSON (minified or compact is fine).
 data:
   home.json: |
-{{ .Files.Get "grafana/dashboards/prod/infra/home.json" | indent 4 }}
+    { "id": null, "uid": "infra-home", "title": "Infra Home (prod)", "tags": ["infra","prod"], "timezone": "browser", "schemaVersion": 36, "version": 1, "panels": [], "time": { "from": "now-1h", "to": "now" } }
   k8s-overview.json: |
-{{ .Files.Get "grafana/dashboards/prod/infra/k8s-overview.json" | indent 4 }}
-{{- end }}
+    { "id": null, "uid": "k8s-overview", "title": "Kubernetes Overview (prod)", "tags": ["infra","kubernetes","prod"], "timezone": "browser", "schemaVersion": 36, "version": 1, "panels": [], "time": { "from": "now-1h", "to": "now" } }

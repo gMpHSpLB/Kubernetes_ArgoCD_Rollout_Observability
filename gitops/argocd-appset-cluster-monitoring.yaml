@@ -11,18 +11,18 @@ spec:
   generators:
     - list:
         elements:
-          # - environment: dev
+          - environment: dev
+            namespace: monitoring
+            targetRevision: main
+            valuesFile: "kube-prometheus-stack-values-dev.yaml"
+          # - environment: staging
           #   namespace: monitoring
           #   targetRevision: main
-          #   valuesFile: "kube-prometheus-stack-values-dev.yaml"
-          - environment: staging
-            namespace: monitoring
-            targetRevision: main
-            valuesFile: "kube-prometheus-stack-values-staging.yaml"
-          - environment: prod
-            namespace: monitoring
-            targetRevision: main
-            valuesFile: "kube-prometheus-stack-values-prod.yaml"
+          #   valuesFile: "kube-prometheus-stack-values-staging.yaml"
+          # - environment: prod
+          #   namespace: monitoring
+          #   targetRevision: main
+          #   valuesFile: "kube-prometheus-stack-values-prod.yaml"
   template:
     metadata:
       name: cluster-monitoring-infra-{{.environment}}
