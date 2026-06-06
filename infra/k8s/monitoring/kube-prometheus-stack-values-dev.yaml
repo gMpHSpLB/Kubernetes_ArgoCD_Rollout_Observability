@@ -62,6 +62,24 @@ grafana:
     limits:
       cpu: 500m
       memory: 768Mi
+  sidecar:
+    enabled: true
+    resources:
+      limits:
+        cpu: 100m
+        memory: 64Mi
+      requests:
+        cpu: 50m
+        memory: 32Mi
+      # Sidecar for datasources
+  sidecarDatasources:
+    resources:
+      limits:
+        cpu: 100m
+        memory: 64Mi
+      requests:
+        cpu: 50m
+        memory: 32Mi
   # Use your existing secret for admin credentials (optional)
   existingSecret: cluster-monitoring-infra-dev-grafana
   existingSecretPasswordKey: admin-password

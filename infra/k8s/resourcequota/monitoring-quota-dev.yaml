@@ -6,8 +6,8 @@ metadata:
   namespace: monitoring
 spec:
   hard:
-    requests.cpu: "2"       # total requested CPU in this namespace
-    limits.cpu: "3"
-    requests.memory: 3Gi    # total requested memory
-    limits.memory: 4Gi
-    pods: "30"
+    requests.cpu: "4"       # total requested CPU in this namespace
+    limits.cpu: "6"
+    requests.memory: 6Gi    # total requested memory
+    limits.memory: 10Gi
+    pods: "50"
