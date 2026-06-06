@@ -2153,7 +2153,7 @@ argocd-apply-cluster-monitoring-appset:
 # After this, The ApplicationSet controller will then generate Application objects automatically.
 .PHONY: argocd-apply-appsets
 argocd-apply-appsets:
-	kubectl apply -f $(GITOPS_DIR)/argocd-appset-monitoring.yaml
+	#kubectl apply -f $(GITOPS_DIR)/argocd-appset-monitoring.yaml
 	kubectl apply -f $(GITOPS_DIR)/argocd-appset-logging.yaml
 	kubectl apply -f $(GITOPS_DIR)/argocd-appset-myapp.yaml
 
@@ -2220,9 +2220,11 @@ argocd-restart:
 #   causes the 262144‑byte limit to be exceeded.
 # This target is idempotent; you can run it any time 
 #   (after recreating Minikube, before ArgoCD syncs, etc.).
+# Since you intend to manage these CRDs with kubectl, you should 
+#    take ownership from Helm by using --force-conflicts.
 .PHONY: k8s-monitoring-crds-apply
 k8s-monitoring-crds-apply:
-	kubectl apply --server-side -f $(K8S_MONITORING_CRDS_FILE)
+	kubectl apply --server-side --force-conflicts -f $(K8S_MONITORING_CRDS_FILE)
 
 # Exclude Prometheus CRDs from Argo CD management
 # In your Argo CD Application or ApplicationSet that defines cluster-monitoring-infra-dev, 
@@ -2245,6 +2247,7 @@ k8s-bootstrap-argocd:
 	$(MAKE) argocd-repo-https-secret
 	$(MAKE) k8s-monitoring-crds-apply
 	$(MAKE) k8s-namespaces-apply           # includes monitoring namespace
+	$(MAKE) k8s-resourcequotas-apply
 	$(MAKE) argocd-apply-appsets
 	$(MAKE) argocd-apply-cluster-monitoring-appset
 	$(MAKE) argocd-list-apps
@@ -2674,6 +2677,10 @@ k8s-smoke-all-argocd: ## ArgoCD-based smokes for dev, staging, prod
 .PHONY: k8s-namespaces-apply
 k8s-namespaces-apply:
 	kubectl apply -f infra/k8s/namespaces/
+
+.PHONY: k8s-resourcequotas-apply
+k8s-resourcequotas-apply:
+	kubectl apply -f infra/k8s/resourcequota/monitoring-quota-dev.yaml
 
 #  generic from-scratch GitOps deployment
 # add one more top-level target for your own convenience, instead of wiring bootstrap into each smoke:
