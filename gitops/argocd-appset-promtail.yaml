@@ -35,12 +35,13 @@ spec:
           targetRevision: 6.15.5
           helm:
             releaseName: myapp-promtail-{{.environment}}
-            valueFiles:
-              - $values/infra/k8s/logging/{{.valuesFile}}
+            parameters:
+              - name: config.lokiAddress
+                value: http://myapp-logging-dev-loki.logging.svc.cluster.local:3100/loki/api/v1/push
 
-        # 2) Values-from-Git source so $values/... works
+        # 2) Values-from-Git source so $values/... works (kept for completeness)
         - repoURL: https://github.com/gMpHSpLB/pythonworkspace.git
-          targetRevision: "{{.targetRevision}}"
+          targetRevision: main
           ref: values
 
       destination:

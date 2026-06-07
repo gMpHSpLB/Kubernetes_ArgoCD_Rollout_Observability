@@ -2155,6 +2155,7 @@ argocd-apply-cluster-monitoring-appset:
 argocd-apply-appsets:
 	#kubectl apply -f $(GITOPS_DIR)/argocd-appset-monitoring.yaml
 	kubectl apply -f $(GITOPS_DIR)/argocd-appset-logging.yaml
+	kubectl apply -f $(GITOPS_DIR)/argocd-appset-promtail.yaml
 	kubectl apply -f $(GITOPS_DIR)/argocd-appset-myapp.yaml
 
 # Check Application objects
@@ -2378,7 +2379,7 @@ argocd-sync-dev: argocd-login-local
 	$(MAKE) argocd-sync-myapp-dev
 
 	# Wait for them to be Healthy, but still time‑bounded
-	$(ARGOCD_CLI_BIN) app wait myapp-monitoring-dev myapp-logging-dev myapp-dev \
+	$(ARGOCD_CLI_BIN) app wait myapp-monitoring-dev myapp-logging-dev myapp-promtail-dev myapp-dev \
 	  --health --timeout 300 || echo "Warning: argocd app wait timed out; relying on kubectl readiness checks."
 
 .PHONY: argocd-sync-monitoring-staging
