@@ -2343,6 +2343,13 @@ argocd-sync-monitoring-dev: argocd-login-local
 	$(ARGOCD_CLI_BIN) app sync myapp-monitoring-dev --timeout 300 || \
 	  echo "Warning: sync myapp-monitoring-dev returned non-zero (possibly already synced)."
 
+.PHONY: argocd-sync-promtail-dev
+argocd-sync-promtail-dev: argocd-login-local
+	- $(ARGOCD_CLI_BIN) app terminate-op myapp-promtail-dev || \
+	  echo "No running operation on myapp-promtail-dev (or insufficient permission)."
+	$(ARGOCD_CLI_BIN) app sync myapp-promtail-dev --timeout 300 || \
+	  echo "Warning: sync myapp-promtail-dev returned non-zero (possibly already synced)."
+
 .PHONY: argocd-sync-logging-dev
 argocd-sync-logging-dev: argocd-login-local
 	- $(ARGOCD_CLI_BIN) app terminate-op myapp-logging-dev || \
@@ -2367,6 +2374,7 @@ argocd-sync-dev: argocd-login-local
 	# Sync dev monitoring, logging, and app (with safe timeouts)
 	$(MAKE) argocd-sync-monitoring-dev
 	$(MAKE) argocd-sync-logging-dev
+	$(MAKE) argocd-sync-promtail-dev
 	$(MAKE) argocd-sync-myapp-dev
 
 	# Wait for them to be Healthy, but still time‑bounded

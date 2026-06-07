@@ -30,7 +30,6 @@ config:
           separator: /
           target_label: job
 
-# Optional: match your current resource limits
 resources:
   requests:
     cpu: "50m"
