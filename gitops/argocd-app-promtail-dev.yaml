@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: myapp-promtail-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: promtail
+    targetRevision: 6.15.5
+    helm:
+      releaseName: myapp-promtail-dev
+      values: |
+        # inline minimal overrides, or use valueFiles if your ArgoCD setup supports it
+        config:
+          lokiAddress: http://myapp-logging-dev-loki.logging.svc.cluster.local:3100/loki/api/v1/push
+          scrape_configs:
+            - job_name: kubernetes-pods
+              pipeline_stages:
+                - cri: {}
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces:
+                    names:
+                      - myapp-dev
+                      - myapp-staging
+                      - myapp-prod
+                      - logging
+                      - monitoring
+                      - argocd
+                      - kube-system
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_namespace]
+                  action: replace
+                  target_label: namespace
+                - source_labels: [__meta_kubernetes_pod_name]
+                  action: replace
+                  target_label: pod
+                - source_labels: [__meta_kubernetes_pod_container_name]
+                  action: replace
+                  target_label: container
+                - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name]
+                  separator: /
+                  target_label: job
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
