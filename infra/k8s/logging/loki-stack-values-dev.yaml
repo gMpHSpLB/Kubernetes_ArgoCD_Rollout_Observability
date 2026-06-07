@@ -42,5 +42,5 @@ promtail:
       memory: "256Mi"
   config:
     clients:
-      - url: http://myapp-logging-dev-loki.logging.svc:3100/loki/api/v1/push
+      - url: http://myapp-logging-dev-loki.logging.svc.cluster.local:3100/loki/api/v1/push
 
