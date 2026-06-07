@@ -18,9 +18,3 @@ data:
         isDefault: true
         jsonData:
           timeInterval: "30s"
-
-      - name: Loki
-        type: loki
-        access: proxy
-        url: http://myapp-logging-dev-loki.logging:3100
-        isDefault: false
