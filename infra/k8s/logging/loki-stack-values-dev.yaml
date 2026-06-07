@@ -41,10 +41,12 @@ promtail:
       cpu: "200m"
       memory: "256Mi"
   config:
-    clients:
-      - url: http://myapp-logging-dev-loki.logging.svc.cluster.local:3100/loki/api/v1/push
+    # Use lokiAddress instead of explicit clients: for promtail chart 6.15.5
+    lokiAddress: http://myapp-logging-dev-loki.logging.svc.cluster.local:3100/loki/api/v1/push
     scrape_configs:
       - job_name: kubernetes-pods
+        pipeline_stages:
+          - cri: {}
         kubernetes_sd_configs:
           - role: pod
             namespaces:
