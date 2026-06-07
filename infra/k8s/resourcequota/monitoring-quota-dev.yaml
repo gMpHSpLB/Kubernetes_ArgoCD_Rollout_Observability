@@ -5,9 +5,9 @@ metadata:
   name: monitoring-quota-dev
   namespace: monitoring
 spec:
-  hard:
-    requests.cpu: "4"       # total requested CPU in this namespace
-    limits.cpu: "6"
-    requests.memory: 6Gi    # total requested memory
-    limits.memory: 10Gi
-    pods: "50"
+  # hard:
+  #   requests.cpu: "4"       # total requested CPU in this namespace
+  #   limits.cpu: "6"
+  #   requests.memory: 6Gi    # total requested memory
+  #   limits.memory: 10Gi
+  #   pods: "50"
