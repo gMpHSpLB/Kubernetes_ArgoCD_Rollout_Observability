@@ -1,0 +1,40 @@
+config:
+  lokiAddress: http://myapp-logging-dev-loki.logging.svc.cluster.local:3100/loki/api/v1/push
+
+  scrape_configs:
+    - job_name: kubernetes-pods
+      pipeline_stages:
+        - cri: {}
+      kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names:
+              - myapp-dev
+              - myapp-staging
+              - myapp-prod
+              - logging
+              - monitoring
+              - argocd
+              - kube-system
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: namespace
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: pod
+        - source_labels: [__meta_kubernetes_pod_container_name]
+          action: replace
+          target_label: container
+        - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name]
+          separator: /
+          target_label: job
+
+# Optional: match your current resource limits
+resources:
+  requests:
+    cpu: "50m"
+    memory: "128Mi"
+  limits:
+    cpu: "200m"
+    memory: "256Mi"
