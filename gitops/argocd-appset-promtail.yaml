@@ -36,7 +36,7 @@ spec:
           helm:
             releaseName: myapp-promtail-{{.environment}}
             parameters:
-              - name: config.lokiAddress
+              - name: config.clients[0].url
                 value: http://myapp-logging-dev-loki.logging.svc.cluster.local:3100/loki/api/v1/push
 
         # 2) Values-from-Git source so $values/... works (kept for completeness)
