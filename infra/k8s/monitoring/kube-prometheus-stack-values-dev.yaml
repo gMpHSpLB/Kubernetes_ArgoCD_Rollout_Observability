@@ -39,9 +39,14 @@ prometheus:
     scrapeInterval: 30s
     # Use emptyDir for dev:
     storageSpec: null
-  # ADD THIS BLOCK (for init-config-reloader & config-reloader)
-  configReloaderCpu: 50m
-  configReloaderMemory: 100Mi
+  # Correct keys for config-reloader and init-config-reloader
+  configReloaderResources:
+    requests:
+      cpu: 50m
+      memory: 100Mi
+    limits:
+      cpu: 100m
+      memory: 200Mi
 prometheus-node-exporter:
   resources:
     requests:
@@ -55,14 +60,29 @@ alertmanager:
   alertmanagerSpec:
     resources:
       requests:
-        cpu: 25m
+        cpu: 50m
         memory: 64Mi
       limits:
-        cpu: 150m
-        memory: 128Mi
+        cpu: 200m
+        memory: 256Mi
     # Use emptyDir for dev:
     storage: {}
-
+  configReloaderResources:
+    requests:
+      cpu: 50m
+      memory: 100Mi
+    limits:
+      cpu: 100m
+      memory: 200Mi  
+kubeStateMetrics:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
 grafana:
   enabled: true
   resources:
