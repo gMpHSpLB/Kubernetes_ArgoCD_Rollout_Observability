@@ -103,3 +103,23 @@ serviceMonitor:
 
 metrics:
   enabled: true
+
+useArgoRollouts: false
+
+rollouts:
+  strategy: canary
+  canary:
+    steps:
+      - setWeight: 10
+      - pause:
+          duration: 120
+      - setWeight: 25
+      - pause:
+          duration: 120
+      - setWeight: 50
+      - pause:
+          duration: 120
+      - setWeight: 100
+  analysis:
+    enabled: true
+    templateName: myapp-canary-analysis

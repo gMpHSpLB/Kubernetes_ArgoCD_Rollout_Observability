@@ -41,6 +41,11 @@
 #   Secret template. So the Deployment file is only one 
 #   piece of the overall chart; it works together with the 
 #   rest of the chart to produce the final Kubernetes manifests.
+#
+# Add Rollout template alongside Deployment
+#   We’ll keep it for useArgoRollouts=false and 
+#   add a rollout.yaml that is rendered only when Rollouts are enabled.
+{{- if not .Values.useArgoRollouts }}
 apiVersion: apps/v1
 kind: Deployment # define the Kubernetes resource type as a Deployment, which manages a replicated application workload.
 metadata:
@@ -103,3 +108,4 @@ spec:
             failureThreshold: 3
           resources: #  Resource requests/limits from values.yaml
 {{- toYaml .Values.resources | nindent 12 }}
+{{- end }}

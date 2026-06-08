@@ -2252,6 +2252,7 @@ k8s-bootstrap-argocd:
 	$(MAKE) argocd-apply-appsets
 	$(MAKE) argocd-apply-cluster-monitoring-appset
 	$(MAKE) argocd-list-apps
+	$(MAKE) k8s-bootstrap-argo-rollouts
 
 # ---- ArgoCD CLI install ---------------------------------------------
 # CLI install (Linux / WSL)
@@ -2381,6 +2382,95 @@ argocd-sync-dev: argocd-login-local
 	# Wait for them to be Healthy, but still time‑bounded
 	$(ARGOCD_CLI_BIN) app wait myapp-monitoring-dev myapp-logging-dev myapp-promtail-dev myapp-dev \
 	  --health --timeout 300 || echo "Warning: argocd app wait timed out; relying on kubectl readiness checks."
+
+# -------------------------- Argo Roolout --------------------------------------
+# =============================================================================
+# Argo Rollouts controller
+# =============================================================================
+
+.PHONY: argo-rollouts-create-namespace
+argo-rollouts-create-namespace:
+	kubectl create namespace argo-rollouts || true
+
+.PHONY: argo-rollouts-install-crd
+argo-rollouts-install-crd:
+	kubectl apply -k https://github.com/argoproj/argo-rollouts/manifests/crds?ref=stable
+
+.PHONY: argo-rollouts-install-controller
+argo-rollouts-install-controller:
+	kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+
+.PHONY: argo-rollouts-install
+argo-rollouts-install: argo-rollouts-create-namespace argo-rollouts-install-crd argo-rollouts-install-controller
+	@echo "Argo Rollouts controller installed in namespace argo-rollouts"
+
+# =============================================================================
+# Argo Rollouts kubectl plugin
+# =============================================================================
+
+.PHONY: kubectl-argo-rollouts-install
+kubectl-argo-rollouts-install:
+	@mkdir -p bin
+	@# Choose binary name based on OS/arch; for Linux:
+	@if [ ! -x "$(CURDIR)/bin/kubectl-argo-rollouts" ]; then \
+	  echo "kubectl argo-rollouts not found; downloading..."; \
+	  curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64 -o "$(CURDIR)/bin/kubectl-argo-rollouts"; \
+	  chmod +x "$(CURDIR)/bin/kubectl-argo-rollouts"; \
+	else \
+	  echo "kubectl argo-rollouts already present at $(CURDIR)/bin/kubectl-argo-rollouts"; \
+	fi
+	@$(CURDIR)/bin/kubectl-argo-rollouts version
+
+.PHONY: kubectl-argo-rollouts-install-global
+kubectl-argo-rollouts-install-global:
+	@if [ ! -f "/usr/local/bin/kubectl-argo-rollouts" ]; then \
+	  curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64; \
+	  chmod +x kubectl-argo-rollouts-linux-amd64; \
+	  sudo mv kubectl-argo-rollouts-linux-amd64 /usr/local/bin/kubectl-argo-rollouts; \
+	else \
+	  echo "kubectl argo-rollouts already present at /usr/local/bin/kubectl-argo-rollouts"; \
+	fi
+	@kubectl argo rollouts version
+
+.PHONY: kubectl-argo-rollouts-test
+kubectl-argo-rollouts-test:
+	kubectl argo rollouts version || \
+	  (echo "kubectl argo_rollouts plugin not found; install with: make kubectl-argo-rollouts-install"; exit 1)
+
+# =============================================================================
+# Argo Rollouts analysis template
+# =============================================================================
+
+.PHONY: argo-rollouts-analysis-apply
+argo-rollouts-analysis-apply:
+	kubectl apply -f infra/k8s/rules/myapp-rollouts-analysis.yaml
+
+.PHONY: argo-rollouts-analysis-delete
+argo-rollouts-analysis-delete:
+	kubectl delete -f infra/k8s/rules/myapp-rollouts-analysis.yaml
+
+.PHONY: k8s-bootstrap-argo-rollouts
+k8s-bootstrap-argo-rollouts:
+	$(MAKE) argo-rollouts-install
+	$(MAKE) kubectl-argo-rollouts-install
+	$(MAKE) argo-rollouts-analysis-apply
+
+# You can also keep a separate “enable argo-rollouts on existing cluster” target 
+# if you want to do this later without re-running the whole bootstrap:
+# make k8s-enable-argo-rollouts-on-cluster once per cluster
+.PHONY: k8s-enable-argo-rollouts-on-cluster
+k8s-enable-argo-rollouts-on-cluster:
+	$(MAKE) argo-rollouts-install
+	$(MAKE) kubectl-argo-rollouts-install
+	$(MAKE) argo-rollouts-analysis-apply
+# =============================================================================
+# Watch rollout (staging)
+# =============================================================================
+.PHONY: k8s-rollout-watch-myapp-staging
+k8s-rollout-watch-myapp-staging:
+	@echo "Watching Argo Rollout for myapp-staging..."
+	@kubectl argo rollouts get rollout myapp-staging -n myapp-staging -w || \
+	  (echo "Hint: install kubectl argo-rollouts plugin with: make kubectl-argo-rollouts-install"; exit 1)
 
 .PHONY: argocd-sync-monitoring-staging
 argocd-sync-monitoring-staging: argocd-login-local
