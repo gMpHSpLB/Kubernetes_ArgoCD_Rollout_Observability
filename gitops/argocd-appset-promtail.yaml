@@ -14,11 +14,6 @@ spec:
             namespace: logging
             targetRevision: main
             valuesFile: "promtail-values-dev.yaml"
-          # You can add staging/prod later:
-          # - environment: staging
-          #   namespace: logging
-          #   targetRevision: main
-          #   valuesFile: "promtail-values-staging.yaml"
   template:
     metadata:
       name: myapp-promtail-{{.environment}}
@@ -29,17 +24,14 @@ spec:
     spec:
       project: default
       sources:
-        # 1) Promtail Helm chart source
         - repoURL: https://grafana.github.io/helm-charts
           chart: promtail
           targetRevision: 6.15.5
           helm:
             releaseName: myapp-promtail-{{.environment}}
-            parameters:
-              - name: config.clients[0].url
-                value: http://myapp-logging-dev-loki.logging.svc.cluster.local:3100/loki/api/v1/push
+            valueFiles:
+              - $values/{{.valuesFile}}
 
-        # 2) Values-from-Git source so $values/... works (kept for completeness)
         - repoURL: https://github.com/gMpHSpLB/pythonworkspace.git
           targetRevision: main
           ref: values
