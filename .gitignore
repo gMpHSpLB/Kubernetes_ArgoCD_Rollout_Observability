@@ -12,4 +12,3 @@ bin/kubectl-argo-rollouts
 infra/k8s/monitoring/charts/
 infra/k8s/logging/charts/
 kubectl-argo-rollouts*
-
