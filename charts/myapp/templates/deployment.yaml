@@ -1,49 +1,49 @@
-# This file is a Helm template that generates a Kubernetes 
-# Deployment for your app. In simple terms, it tells 
-# Kubernetes how to run your application pods, how many 
+# This file is a Helm template that generates a Kubernetes
+# Deployment for your app. In simple terms, it tells
+# Kubernetes how to run your application pods, how many
 # copies to keep running, what image to use, what environment
-# variables to inject, and how to check whether the app is 
+# variables to inject, and how to check whether the app is
 # healthy.
 #
 # What this file is for
-#   charts/myapp/templates/deployment.yaml is not a plain 
-#   Kubernetes YAML file; it is a templated manifest used by 
-#   Helm to render environment-specific Kubernetes resources 
-#   at install or upgrade time. 
-#   Helm replaces values like {{ .Values.image.tag }} and 
-#   {{ .Release.Name }} with real data from your chart values 
+#   charts/myapp/templates/deployment.yaml is not a plain
+#   Kubernetes YAML file; it is a templated manifest used by
+#   Helm to render environment-specific Kubernetes resources
+#   at install or upgrade time.
+#   Helm replaces values like {{ .Values.image.tag }} and
+#   {{ .Release.Name }} with real data from your chart values
 #   and release name.
 #
-# The real use case is to avoid writing separate static YAML 
-# files for dev, staging, and production. Instead, you keep 
+# The real use case is to avoid writing separate static YAML
+# files for dev, staging, and production. Instead, you keep
 # one reusable template and change only the values, such as
 # replica count, image tag, secrets, or resource limits.
 #
 # Why Deployments matter
 #   A Deployment is one of the most important Kubernetes objects
-#   because it keeps the desired number of Pods running and helps 
-#   with updates and recovery. If a Pod crashes, Kubernetes 
-#   replaces it; if you scale replicas up or down, the Deployment 
+#   because it keeps the desired number of Pods running and helps
+#   with updates and recovery. If a Pod crashes, Kubernetes
+#   replaces it; if you scale replicas up or down, the Deployment
 #   controller adjusts accordingly.
 #
-#   It also supports rolling updates, so you can deploy a new 
+#   It also supports rolling updates, so you can deploy a new
 #   image version gradually instead of stopping the old version
 #   all at once.
 #
-# A typical flow is: 
-#   build a Docker image, push it to a registry, 
-#   then run Helm to deploy this template with the correct values 
+# A typical flow is:
+#   build a Docker image, push it to a registry,
+#   then run Helm to deploy this template with the correct values
 #   into a Kubernetes cluster.
 #
 # One important detail
-#   This file depends on other Helm chart files such as 
-#   values.yaml, _helpers.tpl, and likely a ConfigMap and 
-#   Secret template. So the Deployment file is only one 
-#   piece of the overall chart; it works together with the 
+#   This file depends on other Helm chart files such as
+#   values.yaml, _helpers.tpl, and likely a ConfigMap and
+#   Secret template. So the Deployment file is only one
+#   piece of the overall chart; it works together with the
 #   rest of the chart to produce the final Kubernetes manifests.
 #
 # Add Rollout template alongside Deployment
-#   We’ll keep it for useArgoRollouts=false and 
+#   We’ll keep it for useArgoRollouts=false and
 #   add a rollout.yaml that is rendered only when Rollouts are enabled.
 {{- if not .Values.useArgoRollouts }}
 apiVersion: apps/v1

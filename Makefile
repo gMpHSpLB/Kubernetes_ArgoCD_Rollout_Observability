@@ -157,7 +157,7 @@ K8S_ALERTS_NAMESPACE ?= monitoring
 K8S_GRAFANA_DASHBOARD_DIR ?=  $(K8S_MONITORING_DIR)/grafana/dashboards
 K8S_GRAFANA_DASHBOARD_CM_DIR ?= $(K8S_MONITORING_DIR)/grafana/configmaps
 
-# AWS 
+# AWS
 REQUIRE_AWS_LOGGING ?= 0
 
 # ---- ArgoCD bootstrap ----
@@ -273,7 +273,7 @@ docker-scan:
 		--multi-stage \
 		--only-severity high,critical || true
 
-	# Optional: sometimes it’s useful to see only base‑image 
+	# Optional: sometimes it’s useful to see only base‑image
 	# issues (to decide when to bump python:3.11-slim)
 	@echo "Base image-only issues for myapp..."
 	@docker scout cves myapp:latest \
@@ -342,8 +342,8 @@ smoke-test:
 # Note: remove -n auto to see logs from logging module
 # 	-vv is pytest’s “very verbose” mode.
 # 		-v shows each test name and its result.
-#		-vv shows even more detail: full node IDs 
-#		(module, class, function), useful when you 
+#		-vv shows even more detail: full node IDs
+#		(module, class, function), useful when you
 #		have many similarly named tests or use parametrization
 test: ## Run full pytest suite (both projects, parallel, with coverage)
 	@echo "Running tests in parallel..."
@@ -649,14 +649,14 @@ create-secrets:
 	  --from-literal=UPTRACE_DSN=$(K8_UPTRACE_DSN)
 
 # Why we used monitoring namespace for CRDs
-# CRDs themselves are cluster-scoped, 
-# so helm install ... --namespace monitoring doesn't actually 
-# put the CRD in the monitoring namespace—it installs it cluster-wide. 
-# But we used your existing K8S_MONITORING_NAMESPACE variable for 
+# CRDs themselves are cluster-scoped,
+# so helm install ... --namespace monitoring doesn't actually
+# put the CRD in the monitoring namespace—it installs it cluster-wide.
+# But we used your existing K8S_MONITORING_NAMESPACE variable for
 # consistency with your monitoring setup.
 #
-# The real reason was pattern matching: your Makefile already 
-# has K8S_MONITORING_NAMESPACE ?= monitoring for kube-prometheus-stack, 
+# The real reason was pattern matching: your Makefile already
+# has K8S_MONITORING_NAMESPACE ?= monitoring for kube-prometheus-stack,
 # so using the same variable keeps your monitoring infra organized.
 install-prometheus-operator-crds: ## Install Prometheus Operator CRDs for Minikube
 	@echo "Adding Prometheus Community repo and installing CRDs..."
@@ -707,21 +707,21 @@ k8s-netpol-all: k8s-netpol-dev k8s-netpol-staging k8s-netpol-prod
 
 
 # ---------- K8S APP DEPLOY (HELM) ----------
-# This uses helm upgrade --install as recommended for idempotent deploys and 
+# This uses helm upgrade --install as recommended for idempotent deploys and
 # overlays environment-specific values via -f values-local.yaml
 #		- Ensure Minikube is running/using local Docker (optional).
 #		- Install/upgrade both charts with a values-local.yaml per app.
 # Build images into Minikube Docker and deploy via Helm
 # Note:
-#	let Helm own the secret and remove the separate kubectl create 
-#   secret step. That avoids split ownership, prevents release 
-#   collisions, and matches Helm’s resource ownership model 
+#	let Helm own the secret and remove the separate kubectl create
+#   secret step. That avoids split ownership, prevents release
+#   collisions, and matches Helm’s resource ownership model
 #   more cleanly.
 # Why this is the better design
-#	Helm tracks ownership with labels and annotations, and 
-#   it expects the objects in a release to be created and managed 
-#   by that release. When you create the same secret manually and 
-#   also define it in the chart, you create two controllers of 
+#	Helm tracks ownership with labels and annotations, and
+#   it expects the objects in a release to be created and managed
+#   by that release. When you create the same secret manually and
+#   also define it in the chart, you create two controllers of
 #   the same resource, which is exactly what caused your error
 #   Builds images into minikube's Docker, then deploys. Restores host Docker env afterwards.
 #   depend on CRDs and enable ServiceMonitor
@@ -976,7 +976,7 @@ k8s-test-observability:
 
 # Your deploy-minikube-dev target pulls prebuilt images from GHCR and doesn’t touch Docker env
 # Usage:
-# 
+#
 #   MYAPP_IMAGE=ghcr.io/<owner>/<repo>/myapp:dev \
 #   MYLEARNING_IMAGE=ghcr.io/<owner>/<repo>/mylearning:dev
 #   images from GHCR (no local build)
@@ -1026,34 +1026,34 @@ k8-deploy-mylearning:
 
 # ---------- K8S OBSERVABILITY STACK ----------
 
-# Adding Helm chart repositories so Helm can find and 
-# install charts from Prometheus and Grafana later. 
-# In practice, it’s a one-time setup step on each machine, 
-# and it’s commonly used when you want to deploy monitoring 
+# Adding Helm chart repositories so Helm can find and
+# install charts from Prometheus and Grafana later.
+# In practice, it’s a one-time setup step on each machine,
+# and it’s commonly used when you want to deploy monitoring
 # tools into Kubernetes with Helm.
 #
 # What Helm repos are
-# A Helm repository is just a catalog of packaged Kubernetes 
-# applications called charts. When you add a repo, Helm stores 
-# its name and URL locally so you can reference charts from 
-# it using short names like prometheus-community/... 
+# A Helm repository is just a catalog of packaged Kubernetes
+# applications called charts. When you add a repo, Helm stores
+# its name and URL locally so you can reference charts from
+# it using short names like prometheus-community/...
 # or grafana/... instead of downloading them manually.
 #
-# For your example, these repositories are the official sources 
+# For your example, these repositories are the official sources
 # for commonly used monitoring charts:
 #
 # prometheus-community: charts for Prometheus-related components.
 # grafana: charts for Grafana and related tooling.
 #
 # Why this is useful
-# This is useful because Prometheus and Grafana are often 
-# installed through Helm in Kubernetes environments. Once 
-# the repos are added, you can deploy monitoring stacks quickly, 
-# keep chart versions manageable, and update them more easily 
+# This is useful because Prometheus and Grafana are often
+# installed through Helm in Kubernetes environments. Once
+# the repos are added, you can deploy monitoring stacks quickly,
+# keep chart versions manageable, and update them more easily
 # than hand-writing all Kubernetes manifests.
 #
-# For someone building observability for a cluster, this is 
-# typically the first setup step before running helm install 
+# For someone building observability for a cluster, this is
+# typically the first setup step before running helm install
 # for Prometheus or Grafana charts.
 #
 # Line by line
@@ -1064,20 +1064,20 @@ k8-deploy-mylearning:
 # repository name: prometheus-community
 # repository URL: https://prometheus-community.github.io/helm-charts
 #
-# After this, you can install charts from that repo using the 
-# short repo name. 
-# For example, a Prometheus chart might be 
+# After this, you can install charts from that repo using the
+# short repo name.
+# For example, a Prometheus chart might be
 # installed from that source without typing the full URL every time.
 #
 # helm repo add grafana https://grafana.github.io/helm-charts
-# This adds Grafana’s chart repository to Helm with the local 
-# name grafana. That lets you install Grafana charts such as 
+# This adds Grafana’s chart repository to Helm with the local
+# name grafana. That lets you install Grafana charts such as
 # grafana/grafana using Helm’s normal chart naming convention.
 #
 # helm repo update
-# This refreshes Helm’s local cache of chart metadata from all 
-# added repositories. It makes Helm aware of the latest chart 
-# versions and fixes the common issue where Helm can’t “see” 
+# This refreshes Helm’s local cache of chart metadata from all
+# added repositories. It makes Helm aware of the latest chart
+# versions and fixes the common issue where Helm can’t “see”
 # new versions until you update the repo index.
 #
 # Typical use case
@@ -1090,10 +1090,10 @@ k8-deploy-mylearning:
 #	- kube-prometheus-stack → prometheus-community Helm repo.
 #	- loki-stack (Loki + Promtail) → grafana Helm repo.
 #
-# You can verify it from the Helm client, not by looking inside 
-# your git repository. The usual check is helm repo list, and 
-# for these specific repos you can also run helm search repo 
-# prometheus-community and helm search repo grafana to confirm 
+# You can verify it from the Helm client, not by looking inside
+# your git repository. The usual check is helm repo list, and
+# for these specific repos you can also run helm search repo
+# prometheus-community and helm search repo grafana to confirm
 # Helm can see charts from them
 helm-add-repos:
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -1101,7 +1101,7 @@ helm-add-repos:
 	helm repo update
 
 # ---------- REUSABLE OBSERVABILITY HELPERS ----------
-# These helpers keep the Makefile DRY and make the checks 
+# These helpers keep the Makefile DRY and make the checks
 # consistent across environments
 #
 # Fail fast if a context does not exist in the local kubeconfig.
@@ -1246,19 +1246,19 @@ define k8s_incluster_smoke_check
 endef
 
 # -------- In-cluster Grafana smokes (staging/prod) --------
-# - Creates a short‑lived pod in monitoring named grafana-curlpod, 
+# - Creates a short‑lived pod in monitoring named grafana-curlpod,
 #   using curlimages/curl.
 # - Inside that pod, runs curl -sf http://kps-staging-grafana/login.
 # 	  - Kubernetes DNS resolves kps-staging-grafana to the Grafana ClusterIP service.
 # 	  - Traffic is routed via that service to the Grafana pod(s) on port 80.
 # 	  - /login should return 200 (or a 3xx redirect), which curl -sf treats as success.
 #
-# If DNS is broken, service name is wrong, Grafana pods are down, or 
+# If DNS is broken, service name is wrong, Grafana pods are down, or
 # Netpol blocks traffic, the command fails and so does the Make target.
 # The in‑cluster test is complementary:
-# 	- Port‑forward check: “From my laptop/CI host, I can tunnel to 
+# 	- Port‑forward check: “From my laptop/CI host, I can tunnel to
 #     Grafana and get /login.”
-# 	- In‑cluster test: “From another pod in the monitoring namespace, 
+# 	- In‑cluster test: “From another pod in the monitoring namespace,
 #     Kubernetes Service + DNS + Grafana are working.”
 # Generic helper
 # $(1) = namespace (monitoring)
@@ -1286,19 +1286,19 @@ define k8s_incluster_grafana_smoke-prod-security
 	kubectl -n "$(1)" delete pod/grafana-curlpod --ignore-not-found
 endef
 
-# A Helm-based installation target for deploying the kube-prometheus-stack 
-# chart into a Kubernetes cluster, usually for a development or local 
-# environment. It is a convenient wrapper around helm upgrade --install, 
+# A Helm-based installation target for deploying the kube-prometheus-stack
+# chart into a Kubernetes cluster, usually for a development or local
+# environment. It is a convenient wrapper around helm upgrade --install,
 # so the same command works whether the release already exists or not.
 #
 #What it does
-# kube-prometheus-stack is a popular Helm chart that bundles the 
-# Prometheus Operator stack, Prometheus, Alertmanager, Grafana, 
-# and the Kubernetes monitoring rules and dashboards needed for 
+# kube-prometheus-stack is a popular Helm chart that bundles the
+# Prometheus Operator stack, Prometheus, Alertmanager, Grafana,
+# and the Kubernetes monitoring rules and dashboards needed for
 # observability.
 #
-# The goal is to install or update that stack in a namespace 
-# defined by variables, using a dev-specific values file so 
+# The goal is to install or update that stack in a namespace
+# defined by variables, using a dev-specific values file so
 # the deployment fits a local or lower-environment cluster.
 # helm upgrade --install $(K8S_KPS_RELEASE) prometheus-community/kube-prometheus-stack \
 # This is the main Helm action. helm upgrade --install means:
@@ -1338,8 +1338,8 @@ endef
 # Notes:
 # - Uses infra/k8s/monitoring as chart.
 # - Uses your kube-prometheus-stack-values-dev.yaml unchanged.
-# - Suffix -dev on release if you want separate releases per env on 
-#    one cluster (dev/staging/prod namespaces); if you’re using separate 
+# - Suffix -dev on release if you want separate releases per env on
+#    one cluster (dev/staging/prod namespaces); if you’re using separate
 #    clusters per env, you can drop the suffix and just keep cluster-monitoring-infra.
 .PHONY: k8s-monitoring-dev
 k8s-monitoring-dev: helm-add-repos ensure-minikube
@@ -1364,7 +1364,7 @@ k8s-monitoring-prod: helm-add-repos ensure-minikube
 	  $(K8S_MONITORING_CHART_DIR) \
 	  -n $(K8S_MONITORING_NAMESPACE) --create-namespace \
 	  -f $(K8S_MONITORING_VALUES_PROD)
-	  
+
 #apply Grafana dashboards per env
 .PHONY: k8s-grafana-dashboards-dev k8s-grafana-dashboards-staging k8s-grafana-dashboards-prod k8s-grafana-dashboards-all
 
@@ -1417,7 +1417,7 @@ k8s-grafana-dashboards-staging:
 	  -n $(K8S_MONITORING_NAMESPACE) \
 	  --dry-run=client -o yaml | \
 	  kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
-	  kubectl apply -f -	
+	  kubectl apply -f -
 
 # k8s-grafana-dashboards-prod:
 # 	@echo "Applying Grafana dashboards ConfigMaps for PROD..."
@@ -1451,8 +1451,8 @@ k8s-grafana-dashboards-all: k8s-grafana-dashboards-dev k8s-grafana-dashboards-st
 	@echo "Grafana dashboard ConfigMaps applied for dev, staging, and prod."
 
 # Apply Prometheus rules (base + SLOs)
-# Because kubectl apply -f dir/ recursively applies all YAML 
-# in that directory, this will pick up new rules automatically 
+# Because kubectl apply -f dir/ recursively applies all YAML
+# in that directory, this will pick up new rules automatically
 # as you add them
 # Render and apply PrometheusRule for dev
 k8s-alerts-dev:
@@ -1472,7 +1472,7 @@ k8s-alerts-staging:
 	  --namespace $(K8S_ALERTS_NAMESPACE) \
 	| kubectl apply -n $(K8S_ALERTS_NAMESPACE) -f -
 
-# Render and apply PrometheusRule for prod, base + SLO 
+# Render and apply PrometheusRule for prod, base + SLO
 k8s-alerts-prod:
 	@echo "Applying myapp PrometheusRule alerts for PROD..."
 	helm template $(K8S_ALERTS_RELEASE)-prod $(K8S_ALERTS_CHART_DIR) \
@@ -1481,7 +1481,7 @@ k8s-alerts-prod:
 	  --namespace $(K8S_ALERTS_NAMESPACE) \
 	| kubectl apply -n $(K8S_ALERTS_NAMESPACE) -f -
 
-# Convenience target to apply all env rules (if you share a cluster), base + SLO 
+# Convenience target to apply all env rules (if you share a cluster), base + SLO
 k8s-alerts-all: k8s-alerts-dev k8s-alerts-staging k8s-alerts-prod
 	@echo "myapp PrometheusRule alerts applied for dev, staging, and prod."
 
@@ -1522,12 +1522,12 @@ k8s-alerts-diff-all: k8s-alerts-diff-dev k8s-alerts-diff-staging k8s-alerts-diff
 	@echo "Diff for myapp PrometheusRule alerts completed for dev, staging, and prod."
 
 
-#  - kubectl diff -f file.yaml compares the cluster’s current 
-#    object with what would be applied from that file and prints 
+#  - kubectl diff -f file.yaml compares the cluster’s current
+#    object with what would be applied from that file and prints
 #    a YAML diff.
-#  - I’ve added || true to avoid failing the Make target if 
-#    kubectl diff exits with a non‑zero code (diff found). 
-#    That way it behaves like a “preview” step. If you want 
+#  - I’ve added || true to avoid failing the Make target if
+#    kubectl diff exits with a non‑zero code (diff found).
+#    That way it behaves like a “preview” step. If you want
 #    CI to fail on any difference, remove || true
 .PHONY: k8s-grafana-dashboards-diff-dev k8s-grafana-dashboards-diff-staging k8s-grafana-dashboards-diff-prod k8s-grafana-dashboards-diff-all
 
@@ -1580,9 +1580,9 @@ k8s-logging-staging-secrets:
 
 # Add a “soft” wrapper for local smoke
 # 	For local staging smoke, you want:
-#		- If AWS env vars are set → run the strict target and get 
+#		- If AWS env vars are set → run the strict target and get
 #         full S3‑backed Loki.
-# 		- If they are not set → skip S3 secret setup but still proceed 
+# 		- If they are not set → skip S3 secret setup but still proceed
 #         with the rest of the smoke.
 .PHONY: k8s-logging-staging-secrets-soft
 k8s-logging-staging-secrets-soft:
@@ -1705,7 +1705,7 @@ k8s-incluster-smoke-myapp-prod:
 	$(call k8s_incluster_smoke_check,$(K8S_APP_NAMESPACE_PROD),$(K8S_MYAPP_DEPLOY_PROD))
 
 # The in‑cluster Grafana smoke answers:
-# 	- “If I am another pod inside the cluster (in monitoring), 
+# 	- “If I am another pod inside the cluster (in monitoring),
 #	   can I reach the Grafana Service and get a valid HTTP response?”
 .PHONY: k8s-incluster-grafana-smoke-staging
 k8s-incluster-grafana-smoke-staging:
@@ -1774,7 +1774,7 @@ k8s-observability-infra-check: ## Verify monitoring/logging stack health in Mini
 
 	@echo "Minikube observability stack looks healthy."
 
-# Finally, define a single target to bring up the entire observability 
+# Finally, define a single target to bring up the entire observability
 # stack in whatever cluster your current kube‑context points at:
 # Full observability stack for DEV in current cluster:
 # - creates namespaces (monitoring + myapp envs),
@@ -1821,7 +1821,7 @@ k8s-observability-prod: \
 k8s-observability-all: k8s-observability-dev k8s-observability-staging k8s-observability-prod
 	@echo "K8s observability stack deployed for dev, staging, and prod."
 
-.PHONY: build-myapp-dev-local build-myapp-satging-local build-myapp-prod-local 
+.PHONY: build-myapp-dev-local build-myapp-satging-local build-myapp-prod-local
 build-myapp-dev-local: ## Build local dev image for myapp (used by k8s-smoke-dev)
 	@echo "Building local dev image $(LOCAL_MYAPP_IMAGE_DEV)..."
 	@echo "Using Minikube Docker daemon..."
@@ -1850,11 +1850,11 @@ build-myapp-prod-local: ## Build local dev image for myapp (used by k8s-smoke-pr
 # ---------- END-TO-END APP + OBSERVABILITY SMOKE PER ENV ----------
 # Dev: deploy myapp to myapp-dev and then run observability checks.
 # what each dependency does:
-# 	k8-deploy-myapp-* → deploy app (GHCR image + Helm) into 
+# 	k8-deploy-myapp-* → deploy app (GHCR image + Helm) into
 #						myapp-<env> namespace (you already have these).
-# 	k8s-observability-* → install/upgrade observability stack 
+# 	k8s-observability-* → install/upgrade observability stack
 #						(monitoring, logging, dashboards, alerts, netpol) for that env.
-# 	k8s-observability-check-* → run runtime checks 
+# 	k8s-observability-check-* → run runtime checks
 #						(pods, services, metrics, logs) in that env.
 
 
@@ -1864,11 +1864,11 @@ build-myapp-prod-local: ## Build local dev image for myapp (used by k8s-smoke-pr
 # Key points:
 #
 # First local run: you just type make k8s-smoke-dev-local.
-# It will build myapp:dev-local then deploy it and run 
+# It will build myapp:dev-local then deploy it and run
 # observability checks.
 #
-# Subsequent local runs: it will reuse the same local image; 
-# no rebuild unless you change the target to always build or 
+# Subsequent local runs: it will reuse the same local image;
+# no rebuild unless you change the target to always build or
 # add --pull in the Dockerfile step.
 
 # CI / promotion use: in GitHub Actions you already have MYAPP_IMAGE=${{ needs.ci.outputs.image_myapp_dev }}; when you call make k8s-smoke-dev there, it will skip the local build and use the CI image.
@@ -1991,7 +1991,7 @@ k8s-smoke-prod-local: k8s-namespaces-myapp ## Full PROD smoke (local) – build 
 
 .PHONY: k8s-smoke-dev
 # CI/CD jobs: create secret + deploy app (as you have).
-# k8s-smoke-dev: assume app is deployed, only do observability 
+# k8s-smoke-dev: assume app is deployed, only do observability
 # 				 wiring + checks.
 k8s-smoke-dev: ## Observability smoke for DEV (assumes dev app already deployed)
 	@echo "Running DEV observability smoke (stack + app checks)..."
@@ -1999,7 +1999,7 @@ k8s-smoke-dev: ## Observability smoke for DEV (assumes dev app already deployed)
 	$(MAKE) k8s-observability-infra-check # Prom/Grafana/Loki in monitoring/logging
 	$(MAKE) k8s-observability-check-dev   # Pod-level health (probes + logs), app-level checks in myapp-dev
 	$(MAKE) k8s-incluster-smoke-myapp-dev
-	$(MAKE) k8s-http-smoke-dev			  # Service-level behavior, 
+	$(MAKE) k8s-http-smoke-dev			  # Service-level behavior,
 	@echo "End-to-end DEV smoke (observability + HTTP) completed."
 
 k8s-smoke-staging: ## Observability smoke for STAGING (assumes staging app already deployed)
@@ -2067,7 +2067,7 @@ k8s-clean-pvcs:
 
 #	- docker ps -a --filter "ancestor=myapp:dev-local" -q lists containers created from that image.
 # 	- xargs -r docker rm -f removes them forcefully if any exist.
-#	- Then the docker image rm myapp:dev-local will succeed because no 
+#	- Then the docker image rm myapp:dev-local will succeed because no
 #	  containers reference it anymore.
 #	- docker image prune -f cleans up dangling images.
 .PHONY: clean-local-dev-images
@@ -2082,10 +2082,10 @@ clean-local-dev-images: ## Remove local dev containers/images to free space
 .PHONY: clean-local-staging-images
 clean-local-staging-images: ## Remove local staging images to free space
 	@echo "Stopping and removing containers using $(LOCAL_MYAPP_IMAGE_STAGING) (if any)..."
-	@docker ps -a --filter "ancestor=$(LOCAL_MYAPP_IMAGE_STAGING)" -q | xargs -r docker rm -f	
-	@echo "Removing image $(LOCAL_MYAPP_IMAGE_STAGING) (if present)..."	
+	@docker ps -a --filter "ancestor=$(LOCAL_MYAPP_IMAGE_STAGING)" -q | xargs -r docker rm -f
+	@echo "Removing image $(LOCAL_MYAPP_IMAGE_STAGING) (if present)..."
 	@docker image rm $(LOCAL_MYAPP_IMAGE_STAGING) || true
-	@echo "Pruning dangling images..."	
+	@echo "Pruning dangling images..."
 	@docker image prune -f
 
 .PHONY: clean-local-prod-images
@@ -2216,20 +2216,20 @@ argocd-restart:
 	  (echo "ERROR: argocd-application-controller rollout timed out" && exit 1)
 
 # Add a CRD bootstrap target
-# --server-side avoids writing the huge 
-#   kubectl.kubernetes.io/last-applied-configuration annotation that 
+# --server-side avoids writing the huge
+#   kubectl.kubernetes.io/last-applied-configuration annotation that
 #   causes the 262144‑byte limit to be exceeded.
-# This target is idempotent; you can run it any time 
+# This target is idempotent; you can run it any time
 #   (after recreating Minikube, before ArgoCD syncs, etc.).
-# Since you intend to manage these CRDs with kubectl, you should 
+# Since you intend to manage these CRDs with kubectl, you should
 #    take ownership from Helm by using --force-conflicts.
 .PHONY: k8s-monitoring-crds-apply
 k8s-monitoring-crds-apply:
 	kubectl apply --server-side --force-conflicts -f $(K8S_MONITORING_CRDS_FILE)
 
 # Exclude Prometheus CRDs from Argo CD management
-# In your Argo CD Application or ApplicationSet that defines cluster-monitoring-infra-dev, 
-#  add a resource.exclusions entry in the Argo CD config (argocd-cm) or use ignoreDifferences 
+# In your Argo CD Application or ApplicationSet that defines cluster-monitoring-infra-dev,
+#  add a resource.exclusions entry in the Argo CD config (argocd-cm) or use ignoreDifferences
 #  on the app.
 .PHONY: argocd-config
 argocd-config:
@@ -2237,7 +2237,7 @@ argocd-config:
 	-kubectl rollout restart statefulset argocd-application-controller -n $(ARGOCD_NAMESPACE) || \
 	  echo "Warning: application-controller restart already in progress; continuing."
 
-# Full bootstrap from scratch, 
+# Full bootstrap from scratch,
 # From a clean Minikube: make k8s-bootstrap-argocd
 .PHONY: k8s-bootstrap-argocd
 k8s-bootstrap-argocd:
@@ -2256,9 +2256,9 @@ k8s-bootstrap-argocd:
 
 # ---- ArgoCD CLI install ---------------------------------------------
 # CLI install (Linux / WSL)
-# This mirrors the official install snippet 
+# This mirrors the official install snippet
 #   (download latest Linux binary, mark executable).
-# Download the argocd binary to $(ARGOCD_CLI_BIN) (which in your Makefile appears to 
+# Download the argocd binary to $(ARGOCD_CLI_BIN) (which in your Makefile appears to
 #   be argocd in the current directory).
 # Mark it executable.
 # Run ./argocd version --client to verify.
@@ -2296,9 +2296,9 @@ argocd-cli-install:
 # 	kubectl -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret \
 # 	  -o jsonpath="{.data.password}" | base64 -d && echo
 
-# This logs in using the initial admin password and grpc-web via the 
+# This logs in using the initial admin password and grpc-web via the
 # port‑forwarded endpoint.
-# For a “real” cluster, you’d use the LoadBalancer URL and proper TLS; 
+# For a “real” cluster, you’d use the LoadBalancer URL and proper TLS;
 # but design is the same.
 .PHONY: argocd-login-local
 argocd-login-local:
@@ -2368,7 +2368,7 @@ argocd-sync-myapp-dev: argocd-login-local
 
 
 # Sync targets per environment
-# This uses the standard argocd app sync and argocd app wait commands 
+# This uses the standard argocd app sync and argocd app wait commands
 # to sync and ensure all three apps per env are Healthy.
 # Check Guide-ArgoCD-Resync-dev_staging_prod.md for more details, when should we call this?
 .PHONY: argocd-sync-dev
@@ -2388,49 +2388,63 @@ argocd-sync-dev: argocd-login-local
 # Argo Rollouts controller
 # =============================================================================
 
+# .PHONY: argo-rollouts-create-namespace
+# argo-rollouts-create-namespace:
+# 	kubectl create namespace argo-rollouts || true
+
+# .PHONY: argo-rollouts-install-crd
+# argo-rollouts-install-crd:
+# 	kubectl apply -k https://github.com/argoproj/argo-rollouts/manifests/crds?ref=stable
+
+# .PHONY: argo-rollouts-install-controller
+# argo-rollouts-install-controller:
+# 	kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+
+# .PHONY: argo-rollouts-install
+# argo-rollouts-install: argo-rollouts-create-namespace argo-rollouts-install-crd argo-rollouts-install-controller
+# 	@echo "Argo Rollouts controller installed in namespace argo-rollouts"
+
+# =============================================================================
+# Argo Rollouts controller (standard install.yaml)
+# =============================================================================
 .PHONY: argo-rollouts-create-namespace
 argo-rollouts-create-namespace:
 	kubectl create namespace argo-rollouts || true
 
-.PHONY: argo-rollouts-install-crd
-argo-rollouts-install-crd:
-	kubectl apply -k https://github.com/argoproj/argo-rollouts/manifests/crds?ref=stable
-
-.PHONY: argo-rollouts-install-controller
-argo-rollouts-install-controller:
-	kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
-
 .PHONY: argo-rollouts-install
-argo-rollouts-install: argo-rollouts-create-namespace argo-rollouts-install-crd argo-rollouts-install-controller
-	@echo "Argo Rollouts controller installed in namespace argo-rollouts"
+argo-rollouts-install: argo-rollouts-create-namespace
+	@echo "Installing Argo Rollouts using install.yaml (includes CRDs + controller)..."
+	kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+	@echo "Argo Rollouts installation applied."
 
 # =============================================================================
 # Argo Rollouts kubectl plugin
 # =============================================================================
-
 .PHONY: kubectl-argo-rollouts-install
 kubectl-argo-rollouts-install:
 	@mkdir -p bin
-	@# Choose binary name based on OS/arch; for Linux:
 	@if [ ! -x "$(CURDIR)/bin/kubectl-argo-rollouts" ]; then \
 	  echo "kubectl argo-rollouts not found; downloading..."; \
-	  curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64 -o "$(CURDIR)/bin/kubectl-argo-rollouts"; \
+	  curl -L https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64 \
+	    -o "$(CURDIR)/bin/kubectl-argo-rollouts"; \
 	  chmod +x "$(CURDIR)/bin/kubectl-argo-rollouts"; \
 	else \
 	  echo "kubectl argo-rollouts already present at $(CURDIR)/bin/kubectl-argo-rollouts"; \
 	fi
-	@$(CURDIR)/bin/kubectl-argo-rollouts version
+	@"$(CURDIR)/bin/kubectl-argo-rollouts" version
 
 .PHONY: kubectl-argo-rollouts-install-global
 kubectl-argo-rollouts-install-global:
-	@if [ ! -f "/usr/local/bin/kubectl-argo-rollouts" ]; then \
-	  curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64; \
-	  chmod +x kubectl-argo-rollouts-linux-amd64; \
-	  sudo mv kubectl-argo-rollouts-linux-amd64 /usr/local/bin/kubectl-argo-rollouts; \
+	@if [ ! -x "/usr/local/bin/kubectl-argo-rollouts" ]; then \
+	  echo "Installing kubectl-argo-rollouts to /usr/local/bin..."; \
+	  curl -L https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64 \
+	    -o kubectl-argo-rollouts; \
+	  chmod +x kubectl-argo-rollouts; \
+	  sudo mv kubectl-argo-rollouts /usr/local/bin/kubectl-argo-rollouts; \
 	else \
-	  echo "kubectl argo-rollouts already present at /usr/local/bin/kubectl-argo-rollouts"; \
+	  echo "kubectl-argo-rollouts already present at /usr/local/bin/kubectl-argo-rollouts"; \
 	fi
-	@kubectl argo rollouts version
+	kubectl argo rollouts version
 
 .PHONY: kubectl-argo-rollouts-test
 kubectl-argo-rollouts-test:
@@ -2449,13 +2463,18 @@ argo-rollouts-analysis-apply:
 argo-rollouts-analysis-delete:
 	kubectl delete -f infra/k8s/rules/myapp-rollouts-analysis.yaml
 
+# To include Argo Rollouts installation as part of cluster bootstrap.
+# On any new cluster (dev, staging, prod):
+# Install Argo Rollouts controller + CRDs
+# Install the kubectl plugin
+# Apply the myapp-canary-analysis template
 .PHONY: k8s-bootstrap-argo-rollouts
 k8s-bootstrap-argo-rollouts:
 	$(MAKE) argo-rollouts-install
 	$(MAKE) kubectl-argo-rollouts-install
 	$(MAKE) argo-rollouts-analysis-apply
 
-# You can also keep a separate “enable argo-rollouts on existing cluster” target 
+# You can also keep a separate “enable argo-rollouts on existing cluster” target
 # if you want to do this later without re-running the whole bootstrap:
 # make k8s-enable-argo-rollouts-on-cluster once per cluster
 .PHONY: k8s-enable-argo-rollouts-on-cluster
@@ -2535,7 +2554,7 @@ argocd-sync-prod: argocd-login-local
 # This does three things:
 # 	- Tries to terminate any running operation first (ignored if none).
 # 	- Syncs with a timeout so it cannot hang forever.
-# 	- Waits for the app to become Healthy, but does not kill your whole 
+# 	- Waits for the app to become Healthy, but does not kill your whole
 #     Make if it times out.
 .PHONY: argocd-sync-cluster-monitoring-dev
 argocd-sync-cluster-monitoring-dev: argocd-login-local
@@ -2578,7 +2597,7 @@ argocd-sync-cluster-monitoring-prod: argocd-login-local
 
 
 # A direct K8s readiness check for monitoring
-# This looks at the actual pod / DaemonSet status, which you’ve already 
+# This looks at the actual pod / DaemonSet status, which you’ve already
 #  confirmed is healthy, instead of relying only on Argo’s interpretation.
 # Keep the waits, but don’t fail hard if Grafana isn’t Ready.
 # Print diagnostics so you can see issues without stopping the pipeline.
@@ -2619,9 +2638,9 @@ k8s-monitoring-ready-check:
 
 # Dev: ArgoCD‑driven smoke
 # Notes:
-# - We do not call k8s-observability-dev here, because ArgoCD is now 
+# - We do not call k8s-observability-dev here, because ArgoCD is now
 #   responsible for deploying monitoring/logging (via the ApplicationSets).
-# - k8s-observability-infra-check and k8s-observability-check-dev remain 
+# - k8s-observability-infra-check and k8s-observability-check-dev remain
 #   valid; they just verify what ArgoCD deployed.
 .PHONY: k8s-smoke-dev-argocd
 k8s-smoke-dev-argocd: ## Full DEV smoke using ArgoCD (no Helm deploys)
@@ -2734,9 +2753,9 @@ argocd-port-forward-status:
 	  echo "Argo CD port-forward on localhost:$(ARGOCD_PORT): NOT RUNNING"
 
 # Staging: ArgoCD‑driven smoke
-# 	- k8s-logging-staging-secrets-soft is still fine; it just ensures 
+# 	- k8s-logging-staging-secrets-soft is still fine; it just ensures
 #     staging Loki secrets exist before/after ArgoCD sync.
-# 	- We intentionally do not call k8s-observability-staging 
+# 	- We intentionally do not call k8s-observability-staging
 #     (Helm deploy), keeping ArgoCD as the sole deployer.
 .PHONY: k8s-smoke-staging-argocd
 k8s-smoke-staging-argocd: ## Full STAGING smoke using ArgoCD (no Helm deploys)

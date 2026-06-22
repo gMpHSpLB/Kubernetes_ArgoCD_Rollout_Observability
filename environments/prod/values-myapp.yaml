@@ -1,42 +1,42 @@
-# This file is the default configuration for a Helm chart 
+# This file is the default configuration for a Helm chart
 # that deploys your app to Kubernetes. It does not run t
-# the app by itself; instead, Helm uses these values to 
-# fill in templates and generate the actual Kubernetes 
+# the app by itself; instead, Helm uses these values to
+# fill in templates and generate the actual Kubernetes
 # manifests during install or upgrade.
 #
 # What this file does
-#   values.yaml provides settings that the chart templates 
-#   read through .Values. In practice, it lets you change 
-#   things like replica count, container image, service 
-#   type, resource limits, and environment variables without 
+#   values.yaml provides settings that the chart templates
+#   read through .Values. In practice, it lets you change
+#   things like replica count, container image, service
+#   type, resource limits, and environment variables without
 #   editing the template files themselves.
 # Real use case
 #   A common use case is deploying the same app to multiple
-#   environments: dev, staging, and production. You keep the 
-#   Kubernetes templates the same, but override values.yaml 
+#   environments: dev, staging, and production. You keep the
+#   Kubernetes templates the same, but override values.yaml
 #   per environment so dev can use replicaCount: 1, a dev image tag, and a local tracing endpoint, while production can use more replicas, stricter resource limits, and real secret values.
 #
 # How Helm uses it
-#   When you run Helm install or upgrade, Helm reads this 
-#   file as the base configuration and injects the values 
-#   into templates like deployment.yaml, service.yaml, 
-#   ConfigMap templates, and Secret references. You can 
-#   override parts of it with another values file or 
-#   with --set on the command line, which is how teams 
+#   When you run Helm install or upgrade, Helm reads this
+#   file as the base configuration and injects the values
+#   into templates like deployment.yaml, service.yaml,
+#   ConfigMap templates, and Secret references. You can
+#   override parts of it with another values file or
+#   with --set on the command line, which is how teams
 #   keep one chart reusable across environments.
 #
 #Simple example
-#   If the deployment template says something like 
-#   replicas: {{ .Values.replicaCount }}, then changing 
-#   replicaCount from 1 to 3 in values.yaml will make 
-#   Kubernetes deploy three pods instead of one. The same 
-#   idea applies to image tags, resource limits, and environment 
+#   If the deployment template says something like
+#   replicas: {{ .Values.replicaCount }}, then changing
+#   replicaCount from 1 to 3 in values.yaml will make
+#   Kubernetes deploy three pods instead of one. The same
+#   idea applies to image tags, resource limits, and environment
 #   variables.
 replicaCount: 3 # means the app should run as one pod by default.
 
-# Note: 
-# you can avoid hard‑coding the repo path in your Helm 
-# values by using tpl + Values so CI can inject the full image 
+# Note:
+# you can avoid hard‑coding the repo path in your Helm
+# values by using tpl + Values so CI can inject the full image
 # name (or repo + tag)
 image: # control which container image Kubernetes should run and how it should pull it.
   # If fullName is set, it overrides repository:tag
@@ -58,7 +58,7 @@ resources: # sets CPU and memory requests/limits so Kubernetes knows how much ca
     memory: "768Mi"
 
 # Non-secret config; becomes a ConfigMap
-# contains non-sensitive environment variables, 
+# contains non-sensitive environment variables,
 # which are typically turned into a ConfigMap.
 config:
   APP_ENV: "prod"
@@ -70,7 +70,7 @@ config:
   OTEL_TRACES_SAMPLER : "always_on"
 
 # Secret keys; values are provided via external Secret in cluster
-# defines the names of secret-backed environment variables that 
+# defines the names of secret-backed environment variables that
 # should come from a Kubernetes Secret, not from plain text in the chart
 secret:
   name: myapp-secret

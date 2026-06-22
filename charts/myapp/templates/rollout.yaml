@@ -1,5 +1,5 @@
 # - A rollout.yaml that is rendered only when Rollouts are enabled.
-# - This mirrors your existing Deployment spec but wraps it in a Rollout 
+# - This mirrors your existing Deployment spec but wraps it in a Rollout
 #   with canary steps and optional Prometheus‑backed analysis.
 {{- if .Values.useArgoRollouts }}
 apiVersion: argoproj.io/v1alpha1
