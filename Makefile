@@ -168,6 +168,7 @@ ARGOCD_MANIFEST_URL ?= https://raw.githubusercontent.com/argoproj/argo-cd/stable
 
 # ArgoCD CLI
 ARGOCD_CLI_BIN ?= bin/argocd
+ARGOCD_ROLLOUTS_CLI_BIN ?= bin/kubectl-argo-rollouts
 ARGOCD_CLI_URL ?= https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
 # ArgoCD CLI login (local Minikube)
 # Set ARGOCD_SERVER to the service, not localhost
@@ -2482,15 +2483,95 @@ k8s-enable-argo-rollouts-on-cluster:
 	$(MAKE) argo-rollouts-install
 	$(MAKE) kubectl-argo-rollouts-install
 	$(MAKE) argo-rollouts-analysis-apply
+
 # =============================================================================
-# Watch rollout (staging)
+# rollout status check (dev/staging)
+# Auto-promote in dev when paused:
 # =============================================================================
+.PHONY: k8s-rollout-status-myapp-dev
+k8s-rollout-status-myapp-dev:
+	@set -e; \
+	  IMG=$$(kubectl -n myapp-dev get rollout myapp-dev-myapp -o jsonpath='{.spec.template.spec.containers[0].image}'); \
+	  echo "Rollout image: $$IMG"; \
+	  if [ "$$IMG" = ":" ] || [ -z "$$IMG" ]; then \
+	    echo "ERROR: Rollout image is invalid ($$IMG). Check ArgoCD image.fullName or set image via kubectl-argo-rollouts."; \
+	    exit 1; \
+	  fi; \
+	  PHASE=$$(kubectl -n myapp-dev get rollout myapp-dev-myapp -o jsonpath='{.status.phase}'); \
+	  echo "Rollout phase: $$PHASE"; \
+	  if [ "$$PHASE" != "Healthy" ]; then \
+	    echo "WARNING: Rollout is not Healthy (phase=$$PHASE)"; \
+	  fi; \
+	  if [ "$$PHASE" = "Paused" ]; then \
+	    echo "Promoting paused rollout in dev..."; \
+	    "$(CURDIR)/bin/kubectl-argo-rollouts" promote myapp-dev-myapp -n myapp-dev --full; \
+	  fi;\
+	  echo "Detailed rollout tree:"; \
+	  "$(CURDIR)/bin/kubectl-argo-rollouts" get rollout myapp-dev-myapp -n myapp-dev
+
+.PHONY: k8s-rollout-status-myapp-staging
+k8s-rollout-status-myapp-staging:
+	@set -e; \
+	  IMG=$$(kubectl -n myapp-staging get rollout myapp-staging-myapp -o jsonpath='{.spec.template.spec.containers[0].image}'); \
+	  echo "Rollout image: $$IMG"; \
+	  if [ "$$IMG" = ":" ] || [ -z "$$IMG" ]; then \
+	    echo "ERROR: Rollout image is invalid ($$IMG). Check ArgoCD image.fullName or set image via kubectl-argo-rollouts."; \
+	    exit 1; \
+	  fi; \
+	  PHASE=$$(kubectl -n myapp-staging get rollout myapp-staging-myapp -o jsonpath='{.status.phase}'); \
+	  echo "Rollout phase: $$PHASE"; \
+	  if [ "$$PHASE" != "Healthy" ]; then \
+	    echo "WARNING: Rollout is not Healthy (phase=$$PHASE)"; \
+	  fi; \
+	  if [ "$$PHASE" = "Paused" ]; then \
+	    echo "Promoting paused rollout in staging..."; \
+	    "$(CURDIR)/bin/kubectl-argo-rollouts" promote myapp-staging-myapp -n myapp-staging --full; \
+	  fi;\
+	  echo "Detailed rollout tree:"; \
+	  "$(CURDIR)/bin/kubectl-argo-rollouts" get rollout myapp-staging-myapp -n myapp-staging
+
+.PHONY: k8s-rollout-status-myapp-prod
+k8s-rollout-status-myapp-prod:
+	@set -e; \
+	  IMG=$$(kubectl -n myapp-prod get rollout myapp-prod-myapp -o jsonpath='{.spec.template.spec.containers[0].image}'); \
+	  echo "Rollout image: $$IMG"; \
+	  if [ "$$IMG" = ":" ] || [ -z "$$IMG" ]; then \
+	    echo "ERROR: Rollout image is invalid ($$IMG). Check ArgoCD image.fullName or set image via kubectl-argo-rollouts."; \
+	    exit 1; \
+	  fi; \
+	  PHASE=$$(kubectl -n myapp-prod get rollout myapp-prod-myapp -o jsonpath='{.status.phase}'); \
+	  echo "Rollout phase: $$PHASE"; \
+	  if [ "$$PHASE" != "Healthy" ]; then \
+	    echo "WARNING: Rollout is not Healthy (phase=$$PHASE)"; \
+	  fi; \
+	  if [ "$$PHASE" = "Paused" ]; then \
+	    echo "Promoting paused rollout in prod..."; \
+	    "$(CURDIR)/bin/kubectl-argo-rollouts" promote myapp-prod-myapp -n myapp-prod --full; \
+	  fi;\
+	  echo "Detailed rollout tree:"; \
+	  "$(CURDIR)/bin/kubectl-argo-rollouts" get rollout myapp-prod-myapp -n myapp-prod
+# =============================================================================
+# Watch rollout (dev/staging)
+# =============================================================================
+.PHONY: k8s-rollout-watch-myapp-dev
+k8s-rollout-watch-myapp-dev:
+	@echo "Watching Argo Rollout for myapp-dev..."
+	@"$(CURDIR)/bin/kubectl-argo-rollouts" get rollout myapp-dev-myapp -n myapp-dev -w || \
+	  (echo "kubectl argo-rollouts not found; install with: make kubectl-argo-rollouts-install"; exit 1)
+
 .PHONY: k8s-rollout-watch-myapp-staging
 k8s-rollout-watch-myapp-staging:
 	@echo "Watching Argo Rollout for myapp-staging..."
-	@kubectl argo rollouts get rollout myapp-staging -n myapp-staging -w || \
+	@"$(CURDIR)/bin/kubectl-argo-rollouts" get rollout myapp-staging-myapp -n myapp-staging -w || \
 	  (echo "Hint: install kubectl argo-rollouts plugin with: make kubectl-argo-rollouts-install"; exit 1)
 
+.PHONY: k8s-rollout-watch-myapp-prod
+k8s-rollout-watch-myapp-prod:
+	@echo "Watching Argo Rollout for myapp-prod..."
+	@"$(CURDIR)/bin/kubectl-argo-rollouts" get rollout myapp-prod-myapp -n myapp-prod -w || \
+	  (echo "Hint: install kubectl argo-rollouts plugin with: make kubectl-argo-rollouts-install"; exit 1)
+
+# ===================================================================================================================
 .PHONY: argocd-sync-monitoring-staging
 argocd-sync-monitoring-staging: argocd-login-local
 	- $(ARGOCD_CLI_BIN) app terminate-op myapp-monitoring-staging || \
@@ -2648,6 +2729,7 @@ k8s-smoke-dev-argocd: ## Full DEV smoke using ArgoCD (no Helm deploys)
 	$(MAKE) argocd-sync-dev
 	$(MAKE) k8s-monitoring-ready-check
 	$(MAKE) k8s-observability-infra-check
+	$(MAKE) k8s-rollout-status-myapp-dev
 	$(MAKE) k8s-observability-check-dev
 	$(MAKE) k8s-incluster-smoke-myapp-dev
 	$(MAKE) k8s-http-smoke-dev
@@ -2684,6 +2766,8 @@ k8s-argocd-dev-local: ensure-minikube argocd-cli-install argocd-login-local
 	echo "Pointing ArgoCD myapp-dev to image $$IMAGE..."; \
 	$(ARGOCD_CLI_BIN) app set myapp-dev -p image.fullName="$$IMAGE"
 
+	echo "Pointing ArgoCD Rollouts myapp-dev-app to image $$IMAGE..."; \
+	$(ARGOCD_ROLLOUTS_CLI_BIN) set image myapp-dev-myapp myapp="$$IMAGE" -n myapp-dev
 	$(MAKE) k8s-smoke-dev-argocd
 
 .PHONY: k8s-argocd-staging-local
@@ -2712,6 +2796,8 @@ k8s-argocd-staging-local: ensure-minikube argocd-cli-install argocd-login-local
 	echo "Pointing ArgoCD myapp-staging to image $$IMAGE..."; \
 	$(ARGOCD_CLI_BIN) app set myapp-staging -p image.fullName="$$IMAGE"
 
+	echo "Pointing ArgoCD Rollouts myapp-staging-app to image $$IMAGE..."; \
+	$(ARGOCD_ROLLOUTS_CLI_BIN) set image myapp-staging-myapp myapp="$$IMAGE" -n myapp-staging
 	$(MAKE) k8s-smoke-staging-argocd
 
 .PHONY: k8s-argocd-prod-local
@@ -2740,6 +2826,8 @@ k8s-argocd-prod-local: ensure-minikube argocd-cli-install argocd-login-local
 	echo "Pointing ArgoCD myapp-prod to image $$IMAGE..."; \
 	$(ARGOCD_CLI_BIN) app set myapp-prod -p image.fullName="$$IMAGE"
 
+	echo "Pointing ArgoCD Rollouts myapp-prod-app to image $$IMAGE..."; \
+	$(ARGOCD_ROLLOUTS_CLI_BIN) set image myapp-prod-myapp myapp="$$IMAGE" -n myapp-prod
 	$(MAKE) k8s-smoke-prod-argocd
 
 # ARGOCD_PORT ?= 8080 lets you override the port on the command line.
@@ -2763,6 +2851,7 @@ k8s-smoke-staging-argocd: ## Full STAGING smoke using ArgoCD (no Helm deploys)
 	$(MAKE) argocd-sync-staging
 	$(MAKE) k8s-logging-staging-secrets-soft
 	$(MAKE) k8s-observability-infra-check
+	$(MAKE) k8s-rollout-status-myapp-staging
 	$(MAKE) k8s-incluster-grafana-smoke-staging
 	$(MAKE) k8s-observability-check-staging
 	$(MAKE) k8s-incluster-smoke-myapp-staging
@@ -2777,6 +2866,7 @@ k8s-smoke-prod-argocd: ## Full PROD smoke using ArgoCD (no Helm deploys)
 	$(MAKE) argocd-sync-prod
 	$(MAKE) k8s-logging-prod-secrets-soft
 	$(MAKE) k8s-observability-infra-check
+	$(MAKE) k8s-rollout-status-myapp-prod
 	$(MAKE) k8s-incluster-grafana-smoke-prod
 	$(MAKE) k8s-observability-check-prod
 	$(MAKE) k8s-incluster-smoke-myapp-prod
