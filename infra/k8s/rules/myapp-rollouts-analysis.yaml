@@ -15,7 +15,7 @@ spec:
       failureCondition: result[0] >= 0.02
       provider:
         prometheus:
-          address: http://kps-dev-kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+          address: http://cluster-monitoring-infra-d-prometheus.monitoring.svc.cluster.local:9090
           query: |
             sum(rate(http_requests_total{job="myapp-dev",status!~"2.."}[5m]))
               /
@@ -26,7 +26,7 @@ spec:
       failureCondition: result[0] >= 0.7
       provider:
         prometheus:
-          address: http://kps-dev-kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+          address: http://cluster-monitoring-infra-d-prometheus.monitoring.svc.cluster.local:9090
           query: |
             histogram_quantile(0.95,
               sum(rate(http_request_duration_seconds_bucket{job="myapp-dev"}[5m])) by (le))

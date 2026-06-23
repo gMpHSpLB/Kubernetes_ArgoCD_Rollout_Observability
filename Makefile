@@ -2571,6 +2571,14 @@ k8s-rollout-watch-myapp-prod:
 	@"$(CURDIR)/bin/kubectl-argo-rollouts" get rollout myapp-prod-myapp -n myapp-prod -w || \
 	  (echo "Hint: install kubectl argo-rollouts plugin with: make kubectl-argo-rollouts-install"; exit 1)
 
+
+# How to apply the AnalysisTemplate via Make
+# Add a Make target:
+.PHONY: k8s-apply-rollouts-analysis
+k8s-apply-rollouts-analysis:
+	@echo "Applying Argo Rollouts ClusterAnalysisTemplate (myapp-canary-analysis)..."
+	kubectl apply -f infra/k8s/rules/myapp-rollouts-analysis.yaml
+
 # ===================================================================================================================
 .PHONY: argocd-sync-monitoring-staging
 argocd-sync-monitoring-staging: argocd-login-local
@@ -2753,6 +2761,9 @@ k8s-argocd-dev-local: ensure-minikube argocd-cli-install argocd-login-local
 		K8_UPTRACE_TOKEN=$(UPTRACE_TOKEN) \
 		K8_UPTRACE_DSN=$(UPTRACE_DSN)
 
+	@echo "Applying analysis template for Argo Rollouts..."
+	$(MAKE) k8s-apply-rollouts-analysis \
+
 	@echo "Resolving image for ArgoCD DEV..."
 	@set -e; \
 	if [ -n "$$MYAPP_IMAGE" ]; then \
@@ -2763,6 +2774,8 @@ k8s-argocd-dev-local: ensure-minikube argocd-cli-install argocd-login-local
 		$(MAKE) build-myapp-dev-local; \
 		IMAGE="$(LOCAL_MYAPP_IMAGE_DEV)"; \
 	fi; \
+
+
 	echo "Pointing ArgoCD myapp-dev to image $$IMAGE..."; \
 	$(ARGOCD_CLI_BIN) app set myapp-dev -p image.fullName="$$IMAGE"
 
@@ -2782,6 +2795,9 @@ k8s-argocd-staging-local: ensure-minikube argocd-cli-install argocd-login-local
 		K8_DB_PASSWORD=mypassword \
 		K8_UPTRACE_TOKEN=$(UPTRACE_TOKEN) \
 		K8_UPTRACE_DSN=$(UPTRACE_DSN)
+
+	@echo "Applying analysis template for Argo Rollouts..." \
+	$(MAKE) k8s-apply-rollouts-analysis \
 
 	@echo "Resolving image for ArgoCD STAGING..."
 	@set -e; \
@@ -2812,6 +2828,9 @@ k8s-argocd-prod-local: ensure-minikube argocd-cli-install argocd-login-local
 		K8_DB_PASSWORD=mypassword \
 		K8_UPTRACE_TOKEN=$(UPTRACE_TOKEN) \
 		K8_UPTRACE_DSN=$(UPTRACE_DSN)
+
+	@echo "Applying analysis template for Argo Rollouts..."
+	$(MAKE) k8s-apply-rollouts-analysis \
 
 	@echo "Resolving image for ArgoCD PROD..."
 	@set -e; \
@@ -2934,7 +2953,7 @@ argocd-login-ci:
 	  exit 1; \
 	fi
 	@echo "Logging into ArgoCD at $$ARGOCD_SERVER_URL as $$ARGOCD_USERNAME..."
-	argocd login "$$ARGOCD_SERVER_URL" \
+	bin/argocd login "$$ARGOCD_SERVER_URL" \
 	  --username "$$ARGOCD_USERNAME" \
 	  --password "$$ARGOCD_PASSWORD" \
 	  --insecure
@@ -2947,11 +2966,13 @@ argocd-set-image-dev: argocd-login-ci
 	  exit 1; \
 	fi
 	@echo "Setting myapp-dev image to $$IMAGE via ArgoCD..."
-	argocd app set myapp-dev -p image.fullName="$$IMAGE"
+	bin/argocd app set myapp-dev -p image.fullName="$$IMAGE"
+	- bin/argocd app terminate-op myapp-dev || \
+	  echo "No running operation on myapp-dev (or insufficient permission)."
 	@echo "Syncing myapp-dev..."
-	argocd app sync myapp-dev --timeout 300 || echo "Warning: sync myapp-dev returned non-zero."
+	bin/argocd app sync myapp-dev --timeout 300 || echo "Warning: sync myapp-dev returned non-zero."
 	@echo "Waiting for myapp-dev to be Healthy..."
-	argocd app wait myapp-dev --health --timeout 300 || echo "Warning: app wait myapp-dev timed out; rely on k8s smokes."
+	bin/argocd app wait myapp-dev --health --timeout 300 || echo "Warning: app wait myapp-dev timed out; rely on k8s smokes."
 
 # STAGING
 .PHONY: argocd-set-image-staging
