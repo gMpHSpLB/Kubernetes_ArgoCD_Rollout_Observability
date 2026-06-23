@@ -72,5 +72,6 @@ spec:
       analysis:
         templates:
           - templateName: {{ .Values.rollouts.analysis.templateName }}
+            clusterScope: true
       {{- end }}
 {{- end }}

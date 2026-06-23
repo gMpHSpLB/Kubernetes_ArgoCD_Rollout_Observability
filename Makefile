@@ -2250,10 +2250,11 @@ k8s-bootstrap-argocd:
 	$(MAKE) k8s-monitoring-crds-apply
 	$(MAKE) k8s-namespaces-apply           # includes monitoring namespace
 	$(MAKE) k8s-resourcequotas-apply
+	$(MAKE) k8s-bootstrap-argo-rollouts	
 	$(MAKE) argocd-apply-appsets
 	$(MAKE) argocd-apply-cluster-monitoring-appset
 	$(MAKE) argocd-list-apps
-	$(MAKE) k8s-bootstrap-argo-rollouts
+
 
 # ---- ArgoCD CLI install ---------------------------------------------
 # CLI install (Linux / WSL)
@@ -2459,6 +2460,10 @@ kubectl-argo-rollouts-test:
 .PHONY: argo-rollouts-analysis-apply
 argo-rollouts-analysis-apply:
 	kubectl apply -f infra/k8s/rules/myapp-rollouts-analysis.yaml
+	kubectl wait --for=condition=Established crd/clusteranalysistemplates.argoproj.io --timeout=60s || true
+	kubectl get clusteranalysistemplate myapp-canary-analysis
+	kubectl rollout restart deployment/argo-rollouts -n argo-rollouts
+	kubectl rollout status deployment/argo-rollouts -n argo-rollouts
 
 .PHONY: argo-rollouts-analysis-delete
 argo-rollouts-analysis-delete:
@@ -2775,13 +2780,12 @@ k8s-argocd-dev-local: ensure-minikube argocd-cli-install argocd-login-local
 		IMAGE="$(LOCAL_MYAPP_IMAGE_DEV)"; \
 	fi; \
 
+# 	echo "Pointing ArgoCD myapp-dev to image $$IMAGE..."; \
+# 	$(ARGOCD_CLI_BIN) app set myapp-dev -p image.fullName="$$IMAGE"
 
-	echo "Pointing ArgoCD myapp-dev to image $$IMAGE..."; \
-	$(ARGOCD_CLI_BIN) app set myapp-dev -p image.fullName="$$IMAGE"
-
-	echo "Pointing ArgoCD Rollouts myapp-dev-app to image $$IMAGE..."; \
-	$(ARGOCD_ROLLOUTS_CLI_BIN) set image myapp-dev-myapp myapp="$$IMAGE" -n myapp-dev
-	$(MAKE) k8s-smoke-dev-argocd
+# 	echo "Pointing ArgoCD Rollouts myapp-dev-app to image $$IMAGE..."; \
+# 	$(ARGOCD_ROLLOUTS_CLI_BIN) set image myapp-dev-myapp myapp="$$IMAGE" -n myapp-dev
+# 	$(MAKE) k8s-smoke-dev-argocd 
 
 .PHONY: k8s-argocd-staging-local
 k8s-argocd-staging-local: ensure-minikube argocd-cli-install argocd-login-local
