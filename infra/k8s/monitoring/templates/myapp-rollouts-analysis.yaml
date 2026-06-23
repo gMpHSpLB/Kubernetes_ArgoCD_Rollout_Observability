@@ -3,6 +3,7 @@
 # Use a ClusterAnalysisTemplate (shared across namespaces)
 #   If you want the same template for dev, staging, and prod without duplicating, change 
 #   the kind to ClusterAnalysisTemplate and remove namespace
+{{- if .Values.rolloutsAnalysis.enabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: ClusterAnalysisTemplate
 metadata:
@@ -30,3 +31,4 @@ spec:
           query: |
             histogram_quantile(0.95,
               sum(rate(http_request_duration_seconds_bucket{job="myapp-dev"}[5m])) by (le))
+{{- end }}

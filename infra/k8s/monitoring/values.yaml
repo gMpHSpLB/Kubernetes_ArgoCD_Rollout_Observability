@@ -4,3 +4,6 @@ global:
 
 kube-prometheus-stack:
   enabled: true
+
+rolloutsAnalysis:
+  enabled: true

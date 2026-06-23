@@ -2250,7 +2250,7 @@ k8s-bootstrap-argocd:
 	$(MAKE) k8s-monitoring-crds-apply
 	$(MAKE) k8s-namespaces-apply           # includes monitoring namespace
 	$(MAKE) k8s-resourcequotas-apply
-	$(MAKE) k8s-bootstrap-argo-rollouts	
+	$(MAKE) k8s-bootstrap-argo-rollouts
 	$(MAKE) argocd-apply-appsets
 	$(MAKE) argocd-apply-cluster-monitoring-appset
 	$(MAKE) argocd-list-apps
@@ -2785,7 +2785,7 @@ k8s-argocd-dev-local: ensure-minikube argocd-cli-install argocd-login-local
 
 # 	echo "Pointing ArgoCD Rollouts myapp-dev-app to image $$IMAGE..."; \
 # 	$(ARGOCD_ROLLOUTS_CLI_BIN) set image myapp-dev-myapp myapp="$$IMAGE" -n myapp-dev
-# 	$(MAKE) k8s-smoke-dev-argocd 
+# 	$(MAKE) k8s-smoke-dev-argocd
 
 .PHONY: k8s-argocd-staging-local
 k8s-argocd-staging-local: ensure-minikube argocd-cli-install argocd-login-local
