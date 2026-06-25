@@ -2582,7 +2582,7 @@ k8s-rollout-watch-myapp-prod:
 .PHONY: k8s-apply-rollouts-analysis
 k8s-apply-rollouts-analysis:
 	@echo "Applying Argo Rollouts ClusterAnalysisTemplate (myapp-canary-analysis)..."
-	kubectl apply -f infra/k8s/rules/myapp-rollouts-analysis.yaml
+	kubectl apply -f infra/k8s/monitoring/templates/myapp-rollouts-analysis.yaml
 
 # ===================================================================================================================
 .PHONY: argocd-sync-monitoring-staging
@@ -2766,8 +2766,8 @@ k8s-argocd-dev-local: ensure-minikube argocd-cli-install argocd-login-local
 		K8_UPTRACE_TOKEN=$(UPTRACE_TOKEN) \
 		K8_UPTRACE_DSN=$(UPTRACE_DSN)
 
-	@echo "Applying analysis template for Argo Rollouts..."
-	$(MAKE) k8s-apply-rollouts-analysis \
+# 	@echo "Applying analysis template for Argo Rollouts..."
+# 	$(MAKE) k8s-apply-rollouts-analysis
 
 	@echo "Resolving image for ArgoCD DEV..."
 	@set -e; \
@@ -2780,12 +2780,12 @@ k8s-argocd-dev-local: ensure-minikube argocd-cli-install argocd-login-local
 		IMAGE="$(LOCAL_MYAPP_IMAGE_DEV)"; \
 	fi; \
 
-# 	echo "Pointing ArgoCD myapp-dev to image $$IMAGE..."; \
-# 	$(ARGOCD_CLI_BIN) app set myapp-dev -p image.fullName="$$IMAGE"
+	echo "Pointing ArgoCD myapp-dev to image $$IMAGE..."; \
+	$(ARGOCD_CLI_BIN) app set myapp-dev -p image.fullName="$$IMAGE"
 
-# 	echo "Pointing ArgoCD Rollouts myapp-dev-app to image $$IMAGE..."; \
-# 	$(ARGOCD_ROLLOUTS_CLI_BIN) set image myapp-dev-myapp myapp="$$IMAGE" -n myapp-dev
-# 	$(MAKE) k8s-smoke-dev-argocd
+	echo "Pointing ArgoCD Rollouts myapp-dev-app to image $$IMAGE..."; \
+	$(ARGOCD_ROLLOUTS_CLI_BIN) set image myapp-dev-myapp myapp="$$IMAGE" -n myapp-dev
+	$(MAKE) k8s-smoke-dev-argocd
 
 .PHONY: k8s-argocd-staging-local
 k8s-argocd-staging-local: ensure-minikube argocd-cli-install argocd-login-local

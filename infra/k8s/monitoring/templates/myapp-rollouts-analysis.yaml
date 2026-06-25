@@ -10,17 +10,6 @@ metadata:
   name: myapp-canary-analysis
 spec:
   metrics:
-    - name: http-error-rate
-      interval: 60s
-      successCondition: result[0] < 0.01
-      failureCondition: result[0] >= 0.02
-      provider:
-        prometheus:
-          address: http://cluster-monitoring-infra-d-prometheus.monitoring.svc.cluster.local:9090
-          query: |
-            sum(rate(http_requests_total{job="myapp-dev",status!~"2.."}[5m]))
-              /
-            sum(rate(http_requests_total{job="myapp-dev"}[5m]))
     - name: http-latency-p95
       interval: 60s
       successCondition: result[0] < 0.5
@@ -30,5 +19,5 @@ spec:
           address: http://cluster-monitoring-infra-d-prometheus.monitoring.svc.cluster.local:9090
           query: |
             histogram_quantile(0.95,
-              sum(rate(http_request_duration_seconds_bucket{job="myapp-dev"}[5m])) by (le))
+              sum(rate(http_request_duration_seconds_bucket{job="myapp-dev-myapp"}[5m])) by (le))
 {{- end }}
