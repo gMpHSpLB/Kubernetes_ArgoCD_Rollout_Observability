@@ -1,79 +1,90 @@
-Date: 05-04-2026
+“I designed a GitOps-based platform for two Python workloads in a monorepo, with environment-specific 
+Kubernetes deployments, rollout automation, and observability baked in from the start.”
 
-A. What till now we have done:
-- Code is written and structured
-- Dependencies are managed (Poetry)
-- Apps are containerized with Docker
-- Code is version-controlled with Git
-- CI pipelines run automatically using GitHub Actions
-- Databases integrate with your backend
-- Apps behave consistently across environments
-✅ Multiple projects in one repo
-✅ Separate environments
-✅ Run both independently
-✅ Clean professional setup
+Project:
+      - A monorepo containing two Python workloads:
+            myapp = FastAPI service.
+            mylearning = Python package / exercise service.
+      
+      - Dockerized local development with separate compose flows for dev, staging, and prod-like behavior.
+      
+      - Kubernetes deployment using Helm charts, environment-specific values, and namespace separation.
+      
+      - GitOps operations with ArgoCD, including ApplicationSets and environment reconciliation.
+      
+     -  Progressive delivery using Argo Rollouts and analysis templates.
+      
+      - Observability with Prometheus, Grafana, Loki, dashboards, alerts, and service monitoring.
 
-✅ Dockerized services
-✅ Parallel test execution (Makefile)
-✅ Testcontainers (DB isolation)
-✅ CI pipeline
-✅ Multi-service repo (myapp + mylearning)
-✅ Basic CD (image push attempts)
+Architecture diagram:
+                +----------------------+
+                |      GitHub Repo     |
+                |  app + infra YAMLs   |
+                +----------+-----------+
+                           |
+                           v
+                +----------------------+
+                |      Argo CD         |
+                | AppSets + sync loop   |
+                +----------+-----------+
+                           |
+          +----------------+----------------+
+          |                                 |
+          v                                 v
++----------------------+        +----------------------+
+|   App namespaces     |        |   Infra namespaces   |
+| myapp-dev/staging    |        | monitoring/logging   |
+| myapp-prod           |        | argocd/argo-rollouts |
++----------+-----------+        +----------+-----------+
+           |                               |
+           v                               v
++----------------------+        +----------------------+
+|   App workloads      |        | Observability stack  |
+| deployment/rollout   |        | Prometheus/Grafana   |
++----------------------+        | Loki/Promtail        |
+                                +----------------------+
 
-B. Below Tag is created today, use to access the this state of repository whenever you want. 
+Mental model:
+    Platform design
+        Monorepo organization
+        Separate app concerns
+        Environment overlays
+        Helm packaging
+    
+    CI/CD
+        Build
+        Test
+        Scan
+        Image publish
+        Deploy
+        Verify
+    
+    GitOps
+        ArgoCD sync model
+        ApplicationSets
+        Drift detection
+        Declarative environment promotion
+    
+    
+    Kubernetes operations
+        Namespaces
+        Services
+        Deployments / Rollouts
+        ConfigMaps / Secrets
+        Ingress
+        NetworkPolicies
+    
+    Observability
+        Metrics
+        Logs
+        Dashboards
+        Alerts
+        Smoke checks
+    
+    Reliability
+        Rollback
+        Health checks
+        Troubleshooting
+        Resource tuning
+        Quota / PVC / readiness issues
 
-git add -A
-git commit -m "Checkpoint before refactor"
-git tag -a refactor-start -m "Start of architecture refactor"
-git push origin --tags
-Later, you can go back to that exact commit:
-git checkout refactor-start
-
-C. Repo layout (Git + Helm + Argo‑ready)
-Use this structure so it works both with plain Helm and Argo CD:
-charts/
-  myapp/
-  mylearning/
-
-environments/
-  dev/
-    values-myapp.yaml
-    values-mylearning.yaml
-  staging/
-    values-myapp.yaml
-    values-mylearning.yaml
-  prod/
-    values-myapp.yaml
-    values-mylearning.yaml
-
-infra/
-  k8s/
-    monitoring/
-      namespace.yaml
-      kube-prometheus-stack-values-dev.yaml
-      kube-prometheus-stack-values-staging.yaml
-      kube-prometheus-stack-values-prod.yaml
-      grafana-dashboards-infra.yaml
-      grafana-dashboards-myapp.yaml
-    logging/
-      namespace.yaml
-      loki-stack-values-dev.yaml
-      loki-stack-values-staging.yaml
-      loki-stack-values-prod.yaml
-    rules/
-      prometheus-rules-base.yaml
-      slo-rules-myapp.yaml
-
-gitops/
-  dev/
-    argocd-app-monitoring.yaml
-    argocd-app-logging.yaml
-    argocd-app-myapp.yaml
-  staging/
-    argocd-app-monitoring.yaml
-    argocd-app-logging.yaml
-    argocd-app-myapp.yaml
-  prod/
-    argocd-app-monitoring.yaml
-    argocd-app-logging.yaml
-    argocd-app-myapp.yaml
