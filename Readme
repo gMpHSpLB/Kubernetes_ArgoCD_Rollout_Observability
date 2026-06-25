@@ -1,6 +1,6 @@
 “I designed a GitOps-based platform for two Python workloads in a monorepo, with environment-specific 
 Kubernetes deployments, rollout automation, and observability baked in from the start.”
-
+=======================================================================================================================
 Project:
       - A monorepo containing two Python workloads:
             myapp = FastAPI service.
@@ -15,8 +15,10 @@ Project:
      -  Progressive delivery using Argo Rollouts and analysis templates.
       
       - Observability with Prometheus, Grafana, Loki, dashboards, alerts, and service monitoring.
-
-Architecture diagram:
+=========================================================================================================================
+Architecture diagram: 
+This shows the GitOps path: Git is the source of truth, Argo CD reconciles, 
+and the cluster becomes the execution target.
                 +----------------------+
                 |      GitHub Repo     |
                 |  app + infra YAMLs   |
@@ -43,7 +45,7 @@ Architecture diagram:
 | deployment/rollout   |        | Prometheus/Grafana   |
 +----------------------+        | Loki/Promtail        |
                                 +----------------------+
-
+==========================================================================================================================
 Mental model:
     Platform design
         Monorepo organization
@@ -64,7 +66,6 @@ Mental model:
         ApplicationSets
         Drift detection
         Declarative environment promotion
-    
     
     Kubernetes operations
         Namespaces
@@ -87,4 +88,151 @@ Mental model:
         Troubleshooting
         Resource tuning
         Quota / PVC / readiness issues
+===========================================================================================================================
+Repo structure- A clean mental model is:
+            repo/
+            ├─ .github/
+            │  └─ workflows/
+            │     ├─ ci.yaml
+            │     ├─ build.yaml
+            │     └─ deploy.yaml
+            ├─ gitops/
+            │  ├─ argocd-cm.yaml
+            │  ├─ argocd-rbac-cm.yaml
+            │  └─ argocd-appset-*.yaml
+            ├─ infrak8s/
+            │  ├─ monitoring/
+            │  │  ├─ kube-prometheus-stack-values-dev.yaml
+            │  │  ├─ kube-prometheus-stack-values-staging.yaml
+            │  │  └─ kube-prometheus-stack-values-prod.yaml
+            │  ├─ logging/
+            │  │  ├─ loki-stack-values-dev.yaml
+            │  │  └─ promtail-values-dev.yaml
+            │  ├─ namespaces/
+            │  │  ├─ myapp-namespaces.yaml
+            │  │  └─ monitoring.yaml
+            │  ├─ quotas/
+            │  └─ networkpolicies/
+            └─ charts/
+               ├─ myapp/
+               └─ mylearning/
+==============================================================================================================
+Deployment flow:
+            Developer push
+                 |
+                 v
+            GitHub Actions
+              - lint
+              - test
+              - build
+              - scan
+                 |
+                 v
+            Commit image/tag or config change
+                 |
+                 v
+            GitOps repo updated
+                 |
+                 v
+            Argo CD detects diff
+                 |
+                 v
+            Sync to cluster
+                 |
+                 v
+            Kubernetes rollout
+                 |
+                 v
+            Readiness / health checks
+                 |
+                 v
+            Smoke tests / observability checks
+==================================================================================================================
+GitHub Actions workflow:
+      A typical workflow file is placed in .github/workflows/ 
+      and contains jobs and steps that GitHub runs on repository 
+      events such as push or pull request creation.
+            name: ci-cd
+            on:
+              push:
+                branches: [main]
+              pull_request:
+            
+            jobs:
+              lint-test:
+                runs-on: ubuntu-latest
+                steps:
+                  - uses: actions/checkout@v5
+                  - run: make lint
+                  - run: make test
+            
+              build:
+                runs-on: ubuntu-latest
+                needs: lint-test
+                steps:
+                  - uses: actions/checkout@v5
+                  - run: make build
+            
+              deploy-dev:
+                runs-on: ubuntu-latest
+                needs: build
+                steps:
+                  - uses: actions/checkout@v5
+                  - run: make argocd-sync-myapp-dev
+==================================================================================================================
+
+CI stage table:
+| Stage  | Purpose                  | Typical YAML/parameter                               |
+| ------ | ------------------------ | ---------------------------------------------------- |
+| Lint   | Static checks            | workflow job + steps: run: make lint docs.github+1   |
+| Test   | Unit/integration checks  | needs can enforce order hsf-training.github+1        |
+| Build  | Image/package creation   | build job with checkout and build step               |
+| Scan   | Security checks          | dedicated job or step after build                    |
+| Deploy | Sync or apply to cluster | make argocd-sync-* or Helm release                   |
+| Verify | Readiness and health     | kubectl get pods, argocd app get                     |
+
+Operations runbook:
+            1) Confirm desired state
+            Check the application state with Argo CD and Kubernetes.
+            
+            Verify whether the issue is sync, health, or rollout related.
+            
+            Compare the active values file to the intended environment file.
+            
+            2) Validate YAML
+            Check indentation, key names, and file path.
+            
+            Confirm the right values file is wired into Helm or Argo CD.
+            
+            Ensure secrets, ConfigMaps, and dashboard names match exactly.
+            
+            3) Check cluster objects
+            Inspect pods, deployments, StatefulSets, DaemonSets, jobs, and PVCs.
+            
+            Look for Pending, CrashLoopBackOff, ImagePullBackOff, or missing ConfigMap/Secret events.
+            
+            Verify quotas, namespace labels, and network policies if resources fail to schedule.
+            
+            4) Check logs and events
+            Use pod logs for crash details.
+            
+            Check describe pod events for mount, webhook, or scheduling failures.
+            
+            For Argo CD issues, inspect controller or server behavior and app status.
+            
+            5) Sync or roll back
+            For GitOps: fix Git, commit, and let Argo CD reconcile.
+            
+            For immediate mitigation: delete the bad pod, restart a workload, or revert to a known-good revision.
+            
+            Keep rollback Git-first; use Kubernetes rollback only as emergency recovery.
+            
+            6) Re-verify
+            Confirm pods are Running and Ready.
+==================================================================================================================
+            
+            Confirm dashboards, alerts, and logs are visible.
+            
+            Confirm app health becomes Healthy and sync becomes Synced.
+
 
