@@ -178,6 +178,11 @@ ARGOCD_USERNAME ?= admin
 # For local dev, we often disable TLS verification for the CLI.
 ARGOCD_INSECURE ?= true
 
+# Rollout
+ARGOCD_DEV_ROLLOUT      	?= myapp-dev-myapp
+ARGOCD_STAGING_ROLLOUT      ?= myapp-staging-myapp
+ARGOCD_PROD_ROLLOUT      	?= myapp-prod-myapp
+
 # Path to local, untracked HTTPS repo secret for ArgoCD
 REPO_HTTPS_SECRET_FILE ?= infra/secrets-local/argocd-repo-pythonworkspace-https.yaml
 
@@ -2556,7 +2561,7 @@ k8s-rollout-status-myapp-prod:
 	  echo "Detailed rollout tree:"; \
 	  "$(CURDIR)/bin/kubectl-argo-rollouts" get rollout myapp-prod-myapp -n myapp-prod
 # =============================================================================
-# Watch rollout (dev/staging)
+# Watch rollout (dev/staging/prod)
 # =============================================================================
 .PHONY: k8s-rollout-watch-myapp-dev
 k8s-rollout-watch-myapp-dev:
@@ -2583,6 +2588,115 @@ k8s-rollout-watch-myapp-prod:
 k8s-apply-rollouts-analysis:
 	@echo "Applying Argo Rollouts ClusterAnalysisTemplate (myapp-canary-analysis)..."
 	kubectl apply -f infra/k8s/monitoring/templates/myapp-rollouts-analysis.yaml
+
+# ========================================================================
+# k8s-rollout-controller-restart: admin/debug path.
+# Use the controller restart target when:
+# 		Rollouts controller itself needs a refresh,
+# 		controller reconciliation looks stuck,
+# 		or you changed something in the controller setup and want it to re-read cleanly.
+#
+# k8s-analysisruns-myapp-dev: debug/inspection path
+# Use the analysisrun inspection target when:
+# 		analysis is failing,
+# 		rollout is aborted by metrics,
+# 		or you need the exact error message and measurement history.
+# ========================================================================
+.PHONY: k8s-rollout-controller-restart
+k8s-rollout-controller-restart:
+	@echo "Restarting Argo Rollouts controller..."
+	kubectl rollout restart deployment/argo-rollouts -n argo-rollouts
+	@echo "Waiting for Argo Rollouts controller rollout to finish..."
+	kubectl rollout status deployment/argo-rollouts -n argo-rollouts
+
+.PHONY: k8s-analysisruns-myapp-dev
+k8s-analysisruns-myapp-dev:
+	@echo "Listing AnalysisRuns in myapp-dev..."
+	kubectl get analysisruns -n myapp-dev
+	@latest=$$(kubectl get analysisruns -n myapp-dev --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}'); \
+	if [ -n "$$latest" ]; then \
+	  echo "Latest AnalysisRun: $$latest"; \
+	  kubectl get analysisrun $$latest -n myapp-dev -o yaml; \
+	else \
+	  echo "No AnalysisRuns found in myapp-dev"; \
+	fi
+
+# =============================================================================
+# Rollback target (dev/staging/prod) : Argo Rollouts undo for quick rollback
+# with logging.
+# Usage:
+# Rollback to previous revision:
+# 	make k8s-rollout-undo-myapp-dev
+# Rollback to specific revision:
+# 	TO_REVISION=12 make k8s-rollout-undo-myapp-dev
+#
+# Use the rollback target when:
+# 	rollout is degraded,
+# 	smoke tests fail,
+# 	or you need to restore service quickly.
+# =============================================================================
+.PHONY: k8s-rollout-undo-myapp-dev
+k8s-rollout-undo-myapp-dev:
+	@set -e; \
+	  echo "Current rollout tree before rollback:"; \
+	  $(ARGOCD_ROLLOUTS_CLI_BIN) get rollout myapp-dev-myapp -n myapp-dev; \
+	  if [ -n "$(TO_REVISION)" ]; then \
+	    echo "Rolling back to revision $(TO_REVISION)..."; \
+	    $(ARGOCD_ROLLOUTS_CLI_BIN) undo rollout myapp-dev-myapp -n myapp-dev --to-revision=$(TO_REVISION); \
+	  else \
+	    echo "Rolling back to previous revision..."; \
+	    $(ARGOCD_ROLLOUTS_CLI_BIN) undo rollout myapp-dev-myapp -n myapp-dev; \
+	  fi; \
+	  echo "Rollout tree after rollback:"; \
+	  $(ARGOCD_ROLLOUTS_CLI_BIN) get rollout myapp-dev-myapp -n myapp-dev
+
+.PHONY: k8s-rollout-undo-myapp-staging
+k8s-rollout-undo-myapp-staging:
+	@if [ -n "$(TO_REVISION)" ]; then \
+	  echo "Undoing rollout $(ARGOCD_STAGING_ROLLOUT) in $(K8S_APP_NAMESPACE_STAGING) to revision $(TO_REVISION)..."; \
+	  $(ARGOCD_ROLLOUTS_CLI_BIN) undo rollout $(ARGOCD_STAGING_ROLLOUT) -n $(K8S_APP_NAMESPACE_STAGING) --to-revision=$(TO_REVISION); \
+	else \
+	  echo "Undoing rollout $(ARGOCD_STAGING_ROLLOUT) in $(K8S_APP_NAMESPACE_STAGING) to previous revision..."; \
+	  $(ARGOCD_ROLLOUTS_CLI_BIN) undo rollout $(ARGOCD_STAGING_ROLLOUT) -n $(K8S_APP_NAMESPACE_STAGING); \
+	fi
+	@echo "Current rollout status:"
+	@$(ARGOCD_ROLLOUTS_CLI_BIN) get rollout $(ARGOCD_STAGING_ROLLOUT) -n $(K8S_APP_NAMESPACE_STAGING)
+
+.PHONY: k8s-rollout-undo-myapp-prod
+k8s-rollout-undo-myapp-prod:
+	@if [ -n "$(TO_REVISION)" ]; then \
+	  echo "Undoing rollout $(ARGOCD_PROD_ROLLOUT) in $(K8S_APP_NAMESPACE_PROD) to revision $(TO_REVISION)..."; \
+	  $(ARGOCD_ROLLOUTS_CLI_BIN) undo rollout $(ARGOCD_PROD_ROLLOUT) -n $(K8S_APP_NAMESPACE_PROD) --to-revision=$(TO_REVISION); \
+	else \
+	  echo "Undoing rollout $(ARGOCD_PROD_ROLLOUT) in $(K8S_APP_NAMESPACE_PROD) to previous revision..."; \
+	  $(ARGOCD_ROLLOUTS_CLI_BIN) undo rollout $(ARGOCD_PROD_ROLLOUT) -n $(K8S_APP_NAMESPACE_PROD); \
+	fi
+	@echo "Current rollout status:"
+	@$(ARGOCD_ROLLOUTS_CLI_BIN) get rollout $(ARGOCD_PROD_ROLLOUT) -n $(K8S_APP_NAMESPACE_PROD)
+
+# ==============================================================================
+# -------- Git rollback helpers --------
+# - Make targets for Git revert + rollback log
+# - Simple direct revert on main (use with care)
+# - You can use these manually for now; later you could wire them into CI if you want 
+#   automatic PR creation (that typically needs a dedicated “bot” token or GitHub App).
+# ==============================================================================
+.PHONY: git-revert-deploy
+git-revert-deploy:
+	@test -n "$(COMMIT_SHA)" || (echo "ERROR: COMMIT_SHA is required"; exit 1)
+	git revert --no-edit $(COMMIT_SHA)
+	git push origin main
+
+# Create a rollback branch and revert there (for PR-based rollback)
+.PHONY: git-rollback-branch
+git-rollback-branch:
+	@test -n "$(COMMIT_SHA)" || (echo "ERROR: COMMIT_SHA is required"; exit 1)
+	@test -n "$(BRANCH_NAME)" || (echo "ERROR: BRANCH_NAME is required"; exit 1)
+	git checkout -b $(BRANCH_NAME)
+	git revert --no-edit $(COMMIT_SHA)
+	git push origin $(BRANCH_NAME)
+
+
 
 # ===================================================================================================================
 .PHONY: argocd-sync-monitoring-staging
@@ -2800,8 +2914,8 @@ k8s-argocd-staging-local: ensure-minikube argocd-cli-install argocd-login-local
 		K8_UPTRACE_TOKEN=$(UPTRACE_TOKEN) \
 		K8_UPTRACE_DSN=$(UPTRACE_DSN)
 
-	@echo "Applying analysis template for Argo Rollouts..." \
-	$(MAKE) k8s-apply-rollouts-analysis \
+# 	@echo "Applying analysis template for Argo Rollouts..." \
+# 	$(MAKE) k8s-apply-rollouts-analysis
 
 	@echo "Resolving image for ArgoCD STAGING..."
 	@set -e; \

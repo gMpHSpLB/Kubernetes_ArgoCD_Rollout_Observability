@@ -433,6 +433,7 @@ jobs:
       - name: Diff dev Grafana dashboards
         run: |
           make k8s-grafana-dashboards-diff-dev
+
       #  switch dev smoke to ArgoCD smoke
       # - name: K8s dev smoke (deploy + observability)
       #   env:
@@ -447,6 +448,86 @@ jobs:
         run: |
           make k8s-smoke-dev-argocd
           make k8s-observability-infra-check
+
+      # Read Docs/runbooks/rollback.md to know rollbook strategy and command
+      # Add automatic rollback in CI
+      #   1. if anything fails in those checks k8s-smoke-dev-argocd or k8s-observability-infra-check, 
+      #      the rollback runs automatically.
+      #   2. One small recommendation:
+      #      Keep rollouts.analysis.enabled: false in dev until the Prometheus metrics are stable, 
+      #      otherwise the auto-rollback may trigger on analysis noise rather than real app failure.
+      #   3. If validation fails, CI automatically rolls back the dev rollout.
+      #      CI logs show the rollout state before and after rollback.
+      - name: Auto-rollback dev rollout on failure
+        if: failure()
+        run: |
+          echo "Dev deploy failed, triggering rollback..."
+          make k8s-rollout-undo-myapp-dev || echo "Rollback command failed, please check manually."
+
+      # # If you want to roll back to a specific revision later, you can pass it like this:    
+      # - name: Auto-rollback dev rollout on failure
+      #   if: failure()
+      #   env:
+      #     TO_REVISION: "12"
+      #   run: |
+      #     echo "Dev deploy failed, triggering rollback..."
+      #     make k8s-rollout-undo-myapp-dev
+
+      # Add a step to create a rollback report file when the job fails:
+      - name: Create rollback report (dev)
+        if: failure()
+        run: |
+          mkdir -p rollback-reports
+          REPORT_FILE="rollback-reports/rollback-dev-${{ github.run_number }}.md"
+          {
+            echo "# Dev Rollback Report"
+            echo
+            echo "- Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "- Environment: dev"
+            echo "- Commit SHA: ${{ github.sha }}"
+            echo "- Branch/Ref: ${{ github.ref }}"
+            echo "- Image: ${{ needs.ci.outputs.image_myapp_dev }}"
+            echo "- Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            echo "- Triggered by: ${{ github.actor }}"
+            echo "- Reason: CI dev job failed (see logs above)."
+            echo "- Action: kubectl argo rollouts undo myapp-dev-myapp -n myapp-dev"
+          } > "$REPORT_FILE"
+          echo "Rollback report written to $REPORT_FILE"
+
+      # Upload it as an artefact:
+      # Now every failed dev deploy generates a rollback report artefact.
+      - name: Upload rollback report artefact (dev)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-dev-${{ github.run_number }}
+          path: rollback-reports/
+
+      # This will:
+      #  - Send a Slack message only when the dev deploy job fails.
+      #  - Include repo, environment, commit, image, link to the workflow, 
+      #    and confirmation that rollback was triggered.
+      # Note: Notification channel you actually use (Slack, Teams, email), 
+      #       I can adjust the notification step payload to match it exactly.
+      - name: Notify Slack on dev rollback
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "No SLACK_WEBHOOK_URL configured; skipping Slack notification."
+            exit 0
+          fi
+
+          text="Dev deploy failed for \`${{ github.repository }}\`.\n\
+Environment: *dev*\n\
+Commit: \`${{ github.sha }}\`\n\
+Image: \`${{ needs.ci.outputs.image_myapp_dev }}\`\n\
+Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\
+Rollback: *triggered* via \`make k8s-rollout-undo-myapp-dev\`."
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+          curl -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL" || echo "Slack notification failed."
 
       - name: Tear down dev stack
         env:
@@ -603,7 +684,7 @@ jobs:
         run: |
           make k8s-smoke-staging-argocd
           make k8s-observability-infra-check
-
+      # ToDo: Add Rollback for staging, see deploy-dev job 
       - name: Tear down staging stack
         env:
           IMAGE_MYAPP: ${{ needs.ci.outputs.image_myapp_staging }}
